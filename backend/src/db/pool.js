@@ -10,9 +10,14 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
-// one shared pool, every route just borrows a connection from this
+// one shared pool, every route just borrows a connection from this.
+// hosted postgres (neon, supabase, render, railway, ...) all require ssl;
+// local docker postgres doesn't speak ssl at all, so only turn it on when
+// we're clearly not pointed at localhost
+const isLocal = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL);
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: isLocal ? false : { rejectUnauthorized: false },
 });
 
 pool.on('error', (err) => {
