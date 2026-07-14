@@ -1,4 +1,4 @@
-# Whispers App
+# 🎙️ Whispers App
 
 A place to save audio (and eventually video) clips of family members — grandparents,
 parents, anyone — tied to an actual family tree, so future generations can click on
@@ -9,25 +9,25 @@ keeps a little more of them around too.
 Built for a full-stack class project. React + Vite frontend, Node/Express backend,
 PostgreSQL database, all talking over a REST API.
 
-## Features
+## ✨ Features
 
-- **Recording is the star feature, not an afterthought.** Every person's page opens
+- 🎙️ **Recording is the star feature, not an afterthought.** Every person's page opens
   with a big "capture their voice" card and a large mic button — not a form buried
   under a toggle. Recording happens straight from the browser mic
   (`MediaRecorder`), with a fallback to uploading an existing audio/video file.
-- **An actual connected family tree**, not just a list. The Family Tree page draws
+- 🌳 **An actual connected family tree**, not just a list. The Family Tree page draws
   parents, spouses, and children as a real branching diagram, and each person's own
   profile shows their immediate family (parents/spouse/children) the same way —
   connected boxes with lines, not bullet points.
-- **Dark mode** with its own "regal dark purple" palette (toggle in the navbar) —
+- 🌙 **Dark mode** with its own "regal dark purple" palette (toggle in the navbar) —
   every color in the app is a CSS variable, so it's the same layout in either theme.
   The tree logo has a real second color variant for dark mode (not just an inverted
   filter), so it still reads clearly against the dark background.
-- **Warm, unboxy visuals on purpose**: circular photo frames, a subtle paper-grain
+- 🕯️ **Warm, unboxy visuals on purpose**: circular photo frames, a subtle paper-grain
   background, a large low-opacity tree watermark, and dashboard cards that sit at a
   slight scattered tilt like photos pinned to a corkboard rather than a rigid grid.
 
-## Tech stack
+## 🛠️ Tech stack
 
 - React 18 + Vite (JavaScript, no TypeScript)
 - Node.js + Express
@@ -36,7 +36,7 @@ PostgreSQL database, all talking over a REST API.
 - `multer` for handling audio/video file uploads
 - Plain CSS, no UI framework, no paid services anywhere
 
-## How it's organized
+## 🗂️ How it's organized
 
 ```
 whispers-app/  (this folder)
@@ -66,7 +66,7 @@ whispers-app/  (this folder)
 └── docker-compose.yml       # spins up local postgres
 ```
 
-## The data model
+## 🗃️ The data model
 
 Three tables. `people` holds each family member (name, birth/death dates, bio, photo).
 `clips` holds the audio/video recordings, each pointing at one person. `relationships`
@@ -77,7 +77,7 @@ every person + every relationship and builds the actual tree in the browser.
 Audio/video files themselves live on disk in `backend/uploads/`, not in the database —
 Postgres just stores the filename and metadata (size, type, which person it belongs to).
 
-## Setup
+## ⚙️ Setup
 
 ### 1. Start Postgres
 
@@ -120,7 +120,7 @@ Open `http://localhost:5173` and you should see the sample family (or an empty
 dashboard if you skipped the seed data). The moon/sun icon in the navbar toggles
 dark mode; it's remembered per browser.
 
-## API reference
+## 🔌 API reference
 
 All routes are prefixed with `/api`.
 
@@ -141,7 +141,7 @@ All routes are prefixed with `/api`.
 
 Uploaded files are served from `/uploads/<filename>` on the backend.
 
-## Git / GitHub
+## 🌱 Git / GitHub
 
 `.env` files are already in `.gitignore` at every level (root, backend, frontend) so
 your database credentials never get committed. Double check before your first push:
@@ -155,7 +155,7 @@ git remote add origin <your-github-repo-url>
 git push -u origin main
 ```
 
-## Where this could go next
+## 🚀 Where this could go next
 
 - User accounts, so each family has their own private tree (would need auth + a
   `users` table, and every query scoped to `user_id`)
