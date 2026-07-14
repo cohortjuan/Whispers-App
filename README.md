@@ -9,6 +9,11 @@ keeps a little more of them around too.
 Built for a full-stack class project. React + Vite frontend, Node/Express backend,
 PostgreSQL database, all talking over a REST API.
 
+**🔴 Live demo: [whispers-app.vercel.app](https://whispers-app.vercel.app)** — frontend on
+Vercel, backend on Render, database on Neon. Free-tier hosting, so the backend spins
+down after ~15 min idle (first load after a lull takes 30-60s to wake up), and uploaded
+clips don't survive a redeploy.
+
 ## ✨ Features
 
 - 🎙️ **Recording is the star feature, not an afterthought.** Every person's page opens
