@@ -1,0 +1,28 @@
+# local postgres for dev, nothing fancy
+# run:  docker compose up -d
+# stop: docker compose down   (add -v if you want to nuke the data too)
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: whispers-app-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: whispers
+      POSTGRES_PASSWORD: whispers_dev_password
+      POSTGRES_DB: whispers_app
+    ports:
+      - "5432:5432"
+    volumes:
+      - whispers_app_pg_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/2-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U whispers -d whispers_app"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  whispers_app_pg_data:

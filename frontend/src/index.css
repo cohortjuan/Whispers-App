@@ -1,0 +1,343 @@
+/* plain css, no framework -- keeping it warm and simple since this app is about family, not flash */
+
+:root {
+  --color-bg: #faf6f0;
+  --color-surface: #fffaf1;
+  --color-border: #e4d9c9;
+  --color-text: #3a2f28;
+  --color-text-muted: #7a6c5d;
+  --color-primary: #8c4a3a;
+  --color-primary-dark: #6e392c;
+  --color-accent: #c99a4b;
+  --color-danger: #b3392f;
+  --shadow-rgb: 58, 47, 40;
+  --color-photo-bg: #eee1d1;
+  --color-danger-bg: #fbe4e1;
+  --radius: 14px;
+  --shadow: 0 6px 18px rgba(var(--shadow-rgb), 0.12);
+}
+
+/* regal dark purple theme -- same layout and components as light mode,
+   just a different palette, toggled via the navbar button */
+:root[data-theme="dark"] {
+  --color-bg: #170f22;
+  --color-surface: #251a35;
+  --color-border: #493a5e;
+  --color-text: #ece4f5;
+  --color-text-muted: #b3a0c9;
+  --color-primary: #7c4dab;
+  --color-primary-dark: #5a3480;
+  --color-accent: #dbb86c;
+  --color-danger: #e0655b;
+  --shadow-rgb: 0, 0, 0;
+  --color-photo-bg: #3a2b4d;
+  --color-danger-bg: #402024;
+  --shadow: 0 6px 20px rgba(var(--shadow-rgb), 0.45);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Georgia', 'Iowan Old Style', serif;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  transition: background-color 0.25s ease, color 0.25s ease;
+  /* the faintest hint of paper grain so the background isn't a flat, sterile fill */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+}
+:root[data-theme="dark"] body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+}
+
+.app-shell { min-height: 100vh; display: flex; flex-direction: column; position: relative; isolation: isolate; }
+
+/* a big, faint tree watermark behind everything -- rooted in the background
+   the same way the stories on this app are rooted in the people who told them */
+.app-shell::before {
+  content: '';
+  position: fixed;
+  top: 62px; /* navbar height -- keeps the watermark centered in the visible page, not behind the bar */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  background-image: url('/tree-logo.svg');
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: 95vmin 95vmin;
+  opacity: 0.07;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+:root[data-theme="dark"] .app-shell::before {
+  background-image: url('/tree-logo-dark.svg');
+  opacity: 0.1;
+}
+
+.app-main { flex: 1; max-width: 960px; margin: 0 auto; padding: 24px 20px 60px; width: 100%; }
+
+/* nav */
+.navbar {
+  background: var(--color-primary);
+  color: #fff;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.navbar-brand { display: flex; align-items: center; gap: 10px; font-size: 1.3rem; font-weight: bold; text-decoration: none; color: #fff; }
+.navbar-logo { width: 34px; height: 34px; transition: transform 0.35s ease; }
+.navbar-brand:hover .navbar-logo { transform: rotate(-8deg) scale(1.08); }
+.navbar-links { display: flex; gap: 20px; }
+.navbar-links a { color: #f4e9db; text-decoration: none; font-size: 0.95rem; }
+.navbar-links a:hover { color: #fff; text-decoration: underline; }
+.theme-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; padding: 0;
+  background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff; font-size: 0.95rem; cursor: pointer; line-height: 1;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+.theme-toggle:hover { background: rgba(255, 255, 255, 0.28); transform: rotate(-12deg) scale(1.08); }
+
+/* headers */
+/* centered title block, with any action buttons pinned in the corner instead
+   of sitting in a flex row next to the title -- keeps "Your Family" (and
+   every person's name) dead center along with the ornament and caption under it */
+.page-header { position: relative; text-align: center; margin-bottom: 20px; padding: 0 170px; }
+.page-header h1 { margin: 0; font-size: 1.7rem; }
+.page-header h1::after {
+  content: '\2500\2500 \2766 \2500\2500'; /* a small gold rule-flourish-rule under every page title */
+  display: block;
+  margin-top: 6px;
+  color: var(--color-accent);
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+}
+.page-header .page-subtitle { margin-top: 4px; }
+.page-header-actions { position: absolute; top: 2px; right: 0; display: flex; gap: 8px; }
+
+/* small-caps, letter-spaced section headers -- reads like a ledger/album
+   label rather than a plain heading, and stays theme-aware since it's just
+   color/spacing, not a new palette */
+h2 { font-variant: small-caps; letter-spacing: 0.05em; font-size: 1.2rem; margin: 0 0 10px; }
+.section h2 { color: var(--color-primary); }
+.page-subtitle { color: var(--color-text-muted); margin-top: 4px; }
+
+/* buttons */
+.btn {
+  display: inline-block;
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background: var(--color-primary);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.92rem;
+  text-decoration: none;
+  font-family: inherit;
+  box-shadow: 0 3px 8px rgba(var(--shadow-rgb), 0.2);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+.btn:hover { background: var(--color-primary-dark); transform: translateY(-1px); box-shadow: 0 5px 12px rgba(var(--shadow-rgb), 0.26); }
+.btn:active { transform: translateY(0); box-shadow: 0 2px 5px rgba(var(--shadow-rgb), 0.2); }
+.btn-secondary { background: transparent; color: var(--color-primary); border-color: var(--color-primary); box-shadow: none; }
+.btn-secondary:hover { background: #f1e5d8; box-shadow: none; }
+.btn-danger { background: var(--color-danger); }
+.btn-danger:hover { background: #8e2c24; }
+.btn-small { padding: 5px 10px; font-size: 0.8rem; }
+.btn[disabled] { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* cards / grid */
+.card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+
+/* baked-in tilt so the grid reads like photos scattered on a corkboard
+   instead of a spreadsheet -- hover "picks the photo up" straight to look at it.
+   the wrapper carries the tilt (so the delete button tilts with the card),
+   the inner link carries the actual card look */
+.person-card {
+  position: relative;
+  animation: pop-in 0.35s ease backwards;
+  transition: transform 0.2s ease;
+}
+.person-card:nth-child(4n+1) { transform: rotate(-1.6deg); }
+.person-card:nth-child(4n+2) { transform: rotate(1.1deg); }
+.person-card:nth-child(4n+3) { transform: rotate(-0.8deg); }
+.person-card:nth-child(4n+4) { transform: rotate(1.6deg); }
+.person-card:hover { transform: translateY(-5px) rotate(0deg) scale(1.02); }
+
+.person-card-link { text-decoration: none; color: inherit; display: block; text-align: center; transition: box-shadow 0.2s ease; }
+.person-card:hover .person-card-link { box-shadow: 0 10px 22px rgba(var(--shadow-rgb), 0.18); }
+
+.person-card-remove {
+  position: absolute; top: -8px; right: -8px; z-index: 1; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-danger);
+  font-size: 0.95rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow); font-family: inherit; padding: 0; opacity: 0; transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.person-card:hover .person-card-remove { opacity: 1; }
+.person-card-remove:hover { background: var(--color-danger); color: #fff; border-color: var(--color-danger); }
+.person-card-photo {
+  width: 65%; margin: 0 auto 12px; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%;
+  background: var(--color-photo-bg); border: 3px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-border);
+}
+.person-card-photo-placeholder {
+  width: 65%; margin: 0 auto 12px; aspect-ratio: 1 / 1; border-radius: 50%;
+  background: var(--color-photo-bg); display: flex; align-items: center; justify-content: center;
+  font-size: 1.8rem; color: var(--color-primary); font-weight: bold;
+  border: 3px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-border);
+}
+.person-card-name { font-size: 1.05rem; font-weight: bold; }
+.person-card-dates { color: var(--color-text-muted); font-size: 0.85rem; margin-top: 2px; }
+.person-card-clips { color: var(--color-accent); font-size: 0.82rem; margin-top: 6px; }
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* forms */
+.form { display: flex; flex-direction: column; gap: 14px; max-width: 520px; }
+.form-row { display: flex; gap: 14px; }
+.form-row .form-group { flex: 1; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 0.85rem; color: var(--color-text-muted); }
+.form-input, .form-textarea, select.form-input {
+  padding: 9px 11px; border-radius: 10px; border: 1px solid var(--color-border);
+  font-family: inherit; font-size: 0.95rem; background: var(--color-surface); color: var(--color-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.form-input:focus, .form-textarea:focus, select.form-input:focus {
+  outline: none; border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(201, 154, 75, 0.25);
+}
+.form-textarea { resize: vertical; min-height: 80px; }
+.form-error { background: var(--color-danger-bg); color: var(--color-danger); padding: 10px 12px; border-radius: 8px; font-size: 0.88rem; }
+.form-actions { display: flex; gap: 10px; margin-top: 4px; }
+
+/* clips */
+.clip-list { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+.clip-item { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 14px; }
+.clip-item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.clip-item-title { font-weight: bold; margin: 0 0 2px; }
+.clip-item-meta { color: var(--color-text-muted); font-size: 0.82rem; }
+.clip-item-desc { margin: 8px 0; font-size: 0.9rem; }
+.clip-item audio, .clip-item video { width: 100%; margin-top: 8px; }
+
+/* mic recorder */
+.recorder { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.recorder-active { display: flex; align-items: center; gap: 10px; }
+.recorder-dot {
+  width: 12px; height: 12px; border-radius: 50%; background: var(--color-danger);
+  animation: recorder-pulse 1.2s infinite;
+}
+@keyframes recorder-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+.recorder-timer { font-variant-numeric: tabular-nums; font-size: 1.05rem; }
+.recorder-preview { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.recorder-preview audio { max-width: 260px; }
+.recorder-note { color: #f4e9db; font-size: 0.85rem; font-style: italic; }
+
+/* the big inviting record button -- this is the app's headline feature, it
+   should look like one, not like a plain form button */
+.record-button {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  width: 118px; height: 118px; border-radius: 50%;
+  background: #fff; color: var(--color-primary); border: none; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+  animation: record-button-invite 2.4s ease-in-out infinite;
+}
+.record-button:hover { transform: scale(1.06); }
+.record-button-icon { font-size: 2.1rem; line-height: 1; }
+.record-button-label { font-size: 0.72rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.06em; }
+@keyframes record-button-invite {
+  0%, 100% { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25), 0 0 0 0 rgba(255, 255, 255, 0.4); }
+  50% { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25), 0 0 0 16px rgba(255, 255, 255, 0); }
+}
+
+.record-alt-link {
+  background: none; border: none; padding: 0; font-family: inherit; cursor: pointer;
+  color: #f4e9db; text-decoration: underline; font-size: 0.85rem;
+}
+.record-alt-link:hover { color: #fff; }
+
+/* the "capture their voice" hero on a person's page -- top of the page, on
+   purpose, so recording is the first thing anyone sees, not a buried toggle */
+.record-hero {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  color: #fff; border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 28px 24px; margin: 20px 0 28px;
+}
+.record-hero h2 { margin: 0 0 6px; font-size: 1.4rem; text-align: center; }
+.record-hero-subtitle { color: #f4e9db; margin: 0 0 20px; font-size: 0.95rem; text-align: center; }
+/* the record button + upload link are centered above this -- center the
+   field stack as a column too instead of leaving it flush left in a wide card */
+.record-hero .form { max-width: 440px; margin: 0 auto; }
+.record-hero .form-label { color: #f4e9db; }
+.record-hero .form-error { background: var(--color-surface); }
+.record-hero .btn { background: #fff; color: var(--color-primary); border-color: #fff; }
+.record-hero .btn:hover { background: #f4e9db; }
+.record-hero .btn-secondary { background: transparent; color: #fff; border-color: #fff; }
+.record-hero .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* dashboard banner pointing at the same feature */
+.dashboard-hero {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 16px 20px; margin-bottom: 20px;
+}
+.dashboard-hero-icon { font-size: 1.8rem; line-height: 1.2; }
+.dashboard-hero-line { margin: 0; font-weight: bold; font-size: 1.05rem; }
+.dashboard-hero-sub { margin: 4px 0 0; color: var(--color-text-muted); font-size: 0.88rem; }
+
+/* family links -- the connected mini family-tree on a person's profile page,
+   same visual language as the Family Tree page instead of a plain list */
+.family-links { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 14px 0 20px; }
+.family-links-row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.family-links-connector { width: 2px; height: 26px; background: var(--color-accent); }
+.family-links-self-row { align-items: center; }
+.family-links-self {
+  background: var(--color-primary); color: #fff; border-radius: var(--radius);
+  padding: 10px 16px; min-width: 150px; text-align: center; box-shadow: var(--shadow);
+}
+.family-links-self .tree-person-dates { color: #f4e9db; }
+.family-links-spouse { display: flex; align-items: center; gap: 10px; }
+.family-links-amp { color: var(--color-text-muted); font-size: 1.1rem; }
+
+.family-link-badge { position: relative; }
+.family-link-name-wrap {
+  display: block; text-decoration: none; color: inherit; background: var(--color-surface);
+  border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 10px 14px; min-width: 140px; text-align: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.family-link-name-wrap:hover { transform: translateY(-3px); box-shadow: 0 6px 14px rgba(var(--shadow-rgb), 0.14); }
+.family-link-remove {
+  position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-danger);
+  font-size: 0.9rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow); font-family: inherit; padding: 0;
+}
+.family-link-remove:hover { background: var(--color-danger); color: #fff; border-color: var(--color-danger); }
+
+/* family tree */
+.tree { overflow-x: auto; padding: 20px 0; }
+.tree-roots { display: flex; gap: 40px; }
+.tree-node { display: flex; flex-direction: column; align-items: center; }
+.tree-couple { display: flex; align-items: center; gap: 12px; }
+.tree-person { display: block; text-decoration: none; color: inherit; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 14px; min-width: 140px; text-align: center; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.tree-person:hover { transform: translateY(-3px); box-shadow: 0 6px 14px rgba(var(--shadow-rgb), 0.14); }
+.tree-person-name { font-weight: bold; font-size: 0.95rem; }
+.tree-person-dates { color: var(--color-text-muted); font-size: 0.8rem; margin-top: 2px; }
+.tree-children { display: flex; gap: 24px; margin-top: 24px; padding-top: 24px; border-top: 1px dashed var(--color-border); }
+
+/* breathing room + a soft divider between page sections, instead of hard rules */
+.section { margin-top: 32px; }
+.section + .section { padding-top: 28px; border-top: 1px dashed var(--color-border); }
+
+.bio-text { font-style: italic; color: var(--color-text-muted); font-size: 1.05rem; line-height: 1.5; }
