@@ -169,6 +169,12 @@ git push -u origin main
   (`media_type` column, `<video>` player) — just needs a UI toggle exposed more, and
   maybe thumbnail generation
 - A "download everything" export so families always have an offline backup
+- Photos, tagged to family members — not just the one profile photo per person.
+  Upload a picture and tag everyone in it (at least one person required per photo).
+  Each tagged person's profile would show a gallery of every photo they appear in —
+  a thumbnail row sitting right below their header/caption and above the "Capture
+  Their Voice" recording section. Would need a `photos` table plus a `photo_tags`
+  join table (photo_id, person_id) for the many-to-many tagging
 - Before deploying anywhere: `backend/uploads/` is local disk storage, which doesn't
   survive a redeploy on most hosts (Render, Railway, etc. use an ephemeral
   filesystem by default). Moving clip storage to S3/R2/Backblaze (or paying for a
