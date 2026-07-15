@@ -341,3 +341,28 @@ h2 { font-variant: small-caps; letter-spacing: 0.05em; font-size: 1.2rem; margin
 .section + .section { padding-top: 28px; border-top: 1px dashed var(--color-border); }
 
 .bio-text { font-style: italic; color: var(--color-text-muted); font-size: 1.05rem; line-height: 1.5; }
+
+/* mobile: the desktop layout assumes room for a side gutter (page-header's
+   corner action button) and a wide navbar -- neither exists on a narrow
+   screen, so this isn't a smaller version of the same layout, it's a
+   different one: actions stack instead of pinning to a corner, and the
+   navbar wraps instead of squeezing */
+@media (max-width: 640px) {
+  .app-main { padding: 16px 14px 40px; }
+
+  .navbar { flex-wrap: wrap; padding: 10px 14px; row-gap: 8px; }
+  .navbar-brand { font-size: 1.1rem; gap: 8px; }
+  .navbar-logo { width: 28px; height: 28px; }
+  .navbar-links { gap: 12px; font-size: 0.88rem; row-gap: 6px; }
+
+  .page-header { padding: 0; }
+  .page-header-actions { position: static; justify-content: center; margin: 14px auto 0; }
+  .page-header h1 { font-size: 1.4rem; }
+
+  .form-row { flex-direction: column; gap: 14px; }
+
+  .record-hero { padding: 22px 16px; }
+  .record-button { width: 96px; height: 96px; }
+
+  .dashboard-hero { flex-direction: column; }
+}
