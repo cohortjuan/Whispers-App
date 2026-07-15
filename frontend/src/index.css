@@ -1,6 +1,7 @@
 /* plain css, no framework -- keeping it warm and simple since this app is about family, not flash */
 
 :root {
+  --font-display: 'Playfair Display', Georgia, 'Iowan Old Style', serif;
   --color-bg: #faf6f0;
   --color-surface: #fffaf1;
   --color-border: #e4d9c9;
@@ -86,7 +87,7 @@ body {
   align-items: center;
   justify-content: space-between;
 }
-.navbar-brand { display: flex; align-items: center; gap: 10px; font-size: 1.3rem; font-weight: bold; text-decoration: none; color: #fff; }
+.navbar-brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; letter-spacing: 0.01em; text-decoration: none; color: #fff; }
 .navbar-logo { width: 34px; height: 34px; transition: transform 0.35s ease; }
 .navbar-brand:hover .navbar-logo { transform: rotate(-8deg) scale(1.08); }
 .navbar-links { display: flex; gap: 20px; }
@@ -106,7 +107,7 @@ body {
    of sitting in a flex row next to the title -- keeps "Your Family" (and
    every person's name) dead center along with the ornament and caption under it */
 .page-header { position: relative; text-align: center; margin-bottom: 20px; padding: 0 170px; }
-.page-header h1 { margin: 0; font-size: 1.7rem; }
+.page-header h1 { margin: 0; font-size: 1.9rem; font-family: var(--font-display); font-weight: 800; }
 .page-header h1::after {
   content: '\2500\2500 \2766 \2500\2500'; /* a small gold rule-flourish-rule under every page title */
   display: block;
