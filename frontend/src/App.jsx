@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import NavBar from './components/NavBar.jsx';
+import SplashIntro from './components/SplashIntro.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import PersonForm from './pages/PersonForm.jsx';
 import PersonDetail from './pages/PersonDetail.jsx';
@@ -9,6 +10,7 @@ import FamilyTree from './pages/FamilyTree.jsx';
 export default function App() {
   return (
     <div className="app-shell">
+      <SplashIntro />
       <NavBar />
       <main className="app-main">
         <Routes>

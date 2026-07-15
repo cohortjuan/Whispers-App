@@ -32,7 +32,12 @@ function fileFilter(req, file, cb) {
   if (baseType.startsWith('audio/') || baseType.startsWith('video/')) {
     cb(null, true);
   } else {
-    cb(new Error(`unsupported file type: ${file.mimetype}. please upload an audio or video file`));
+    // plain Error isn't a multer.MulterError, so errorHandler's generic branch
+    // would default this to 500 without an explicit status -- it's a bad
+    // request, not a server failure
+    const err = new Error(`unsupported file type: ${file.mimetype}. please upload an audio or video file`);
+    err.status = 400;
+    cb(err);
   }
 }
 

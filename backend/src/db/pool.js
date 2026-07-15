@@ -12,12 +12,20 @@ if (!process.env.DATABASE_URL) {
 
 // one shared pool, every route just borrows a connection from this.
 // hosted postgres (neon, supabase, render, railway, ...) all require ssl;
-// local docker postgres doesn't speak ssl at all, so only turn it on when
-// we're clearly not pointed at localhost
-const isLocal = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL);
+// local docker postgres doesn't speak ssl at all. DATABASE_SSL lets you say
+// so explicitly (for a non-localhost hostname that's still plaintext, e.g. a
+// docker-compose service name or a LAN box) -- falls back to guessing from
+// the hostname only when that's not set, so existing setups keep working
+function resolveSsl() {
+  if (process.env.DATABASE_SSL === 'true') return { rejectUnauthorized: false };
+  if (process.env.DATABASE_SSL === 'false') return false;
+  const isLocal = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL);
+  return isLocal ? false : { rejectUnauthorized: false };
+}
+
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: isLocal ? false : { rejectUnauthorized: false },
+  ssl: resolveSsl(),
 });
 
 pool.on('error', (err) => {

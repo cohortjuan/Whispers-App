@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
-import { lifespan } from '../utils.js';
+import { lifespan, classifyRelationship } from '../utils.js';
 import ClipPlayer from '../components/ClipPlayer.jsx';
 import ClipUploadForm from '../components/ClipUploadForm.jsx';
 import RelationshipForm from '../components/RelationshipForm.jsx';
@@ -60,14 +60,22 @@ export default function PersonDetail() {
 
   async function handleDeletePerson() {
     if (!confirm(`delete ${person.first_name} ${person.last_name}? this removes their clips and relationships too, can't be undone.`)) return;
-    await api.people.remove(id);
-    navigate('/');
+    try {
+      await api.people.remove(id);
+      navigate('/');
+    } catch (err) {
+      alert(`couldn't delete: ${err.message}`);
+    }
   }
 
   async function handleDeleteClip(clipId) {
     if (!confirm('delete this clip? the file is gone for good.')) return;
-    await api.clips.remove(clipId);
-    setClips((cs) => cs.filter((c) => c.id !== clipId));
+    try {
+      await api.clips.remove(clipId);
+      setClips((cs) => cs.filter((c) => c.id !== clipId));
+    } catch (err) {
+      alert(`couldn't delete: ${err.message}`);
+    }
   }
 
   async function handleUpdateClip(clipId, body) {
@@ -76,29 +84,30 @@ export default function PersonDetail() {
   }
 
   async function handleDeleteRelationship(relId) {
-    await api.relationships.remove(relId);
-    setRelationships((rs) => rs.filter((r) => r.id !== relId));
+    try {
+      await api.relationships.remove(relId);
+      setRelationships((rs) => rs.filter((r) => r.id !== relId));
+    } catch (err) {
+      alert(`couldn't remove that link: ${err.message}`);
+    }
   }
 
   const personById = useMemo(() => Object.fromEntries(allPeople.map((p) => [p.id, p])), [allPeople]);
 
   // sorts the raw directional relationship rows into parents/spouses/children
   // from THIS person's point of view, so they can be drawn as a little tree
-  // instead of a flat list -- same idea as the Family Tree page's parentsMap
+  // instead of a flat list -- classifyRelationship is the same direction
+  // logic the Family Tree page uses to build its parentsMap/childrenMap
   const familyLinks = useMemo(() => {
     const parents = [];
     const spouses = [];
     const children = [];
 
     for (const rel of relationships) {
-      const isSelfPerson = Number(rel.person_id) === Number(id);
-      if (rel.relationship_type === 'spouse') {
-        spouses.push({ relId: rel.id, otherId: isSelfPerson ? rel.related_person_id : rel.person_id });
-      } else if (isSelfPerson) {
-        children.push({ relId: rel.id, otherId: rel.related_person_id });
-      } else {
-        parents.push({ relId: rel.id, otherId: rel.person_id });
-      }
+      const { role, otherId } = classifyRelationship(rel, id);
+      if (role === 'spouse') spouses.push({ relId: rel.id, otherId });
+      else if (role === 'child') children.push({ relId: rel.id, otherId });
+      else parents.push({ relId: rel.id, otherId });
     }
 
     return { parents, spouses, children };

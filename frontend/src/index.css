@@ -1,7 +1,7 @@
 /* plain css, no framework -- keeping it warm and simple since this app is about family, not flash */
 
 :root {
-  --font-display: 'Playfair Display', Georgia, 'Iowan Old Style', serif;
+  --font-display: 'Fraunces', Georgia, 'Iowan Old Style', serif;
   --color-bg: #faf6f0;
   --color-surface: #fffaf1;
   --color-border: #e4d9c9;
@@ -88,7 +88,11 @@ body {
   align-items: center;
   justify-content: space-between;
 }
-.navbar-brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; letter-spacing: 0.01em; text-decoration: none; color: #fff; }
+.navbar-brand {
+  display: flex; align-items: center; gap: 10px; text-decoration: none; color: #fff;
+  font-family: var(--font-display); font-optical-sizing: auto;
+  font-style: italic; font-weight: 600; font-size: 1.55rem; letter-spacing: 0.01em;
+}
 .navbar-logo { width: 34px; height: 34px; transition: transform 0.35s ease; }
 .navbar-brand:hover .navbar-logo { transform: rotate(-8deg) scale(1.08); }
 .navbar-links { display: flex; gap: 20px; padding-right: 44px; }
@@ -111,7 +115,7 @@ body {
    of sitting in a flex row next to the title -- keeps "Your Family" (and
    every person's name) dead center along with the ornament and caption under it */
 .page-header { position: relative; text-align: center; margin-bottom: 20px; padding: 0 170px; }
-.page-header h1 { margin: 0; font-size: 1.9rem; font-family: var(--font-display); font-weight: 800; }
+.page-header h1 { margin: 0; font-size: 1.9rem; font-family: var(--font-display); font-optical-sizing: auto; font-weight: 700; }
 .page-header h1::after {
   content: '\2500\2500 \2766 \2500\2500'; /* a small gold rule-flourish-rule under every page title */
   display: block;
@@ -219,6 +223,13 @@ h2 { font-variant: small-caps; letter-spacing: 0.05em; font-size: 1.2rem; margin
 }
 .form-textarea { resize: vertical; min-height: 80px; }
 .form-error { background: var(--color-danger-bg); color: var(--color-danger); padding: 10px 12px; border-radius: 8px; font-size: 0.88rem; }
+
+.loading { text-align: center; color: var(--color-text-muted); font-style: italic; padding: 40px 20px; }
+.empty-state {
+  text-align: center; color: var(--color-text-muted); background: var(--color-surface);
+  border: 1px dashed var(--color-border); border-radius: var(--radius); padding: 32px 20px; margin: 20px 0;
+}
+.empty-state a { color: var(--color-primary); font-weight: bold; }
 .form-actions { display: flex; gap: 10px; margin-top: 4px; }
 
 /* clips */
@@ -371,4 +382,45 @@ h2 { font-variant: small-caps; letter-spacing: 0.05em; font-size: 1.2rem; margin
   .record-button { width: 96px; height: 96px; }
 
   .dashboard-hero { flex-direction: column; }
+
+  /* landing spot has to match the shrunk mobile navbar logo (28px, 10px/14px padding) */
+  .splash-logo { top: 10px; left: 14px; width: 28px; height: 28px; }
+}
+
+/* one-time intro: the logo starts huge and centered ("close to the ancestors"),
+   then zooms out and shrinks down to exactly where the real navbar logo sits,
+   landing as if it was there all along, then sparkles to say hello */
+.splash-intro {
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--color-bg); pointer-events: none;
+  animation: splash-fade-out 0.5s ease 1.6s forwards;
+}
+.splash-logo {
+  position: fixed; top: 14px; left: 24px; width: 34px; height: 34px;
+  animation: splash-zoom 1.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes splash-zoom {
+  /* hold big for a beat so it actually reads as "covering the screen" before
+     it shrinks -- an easing curve alone shrunk it almost immediately */
+  0%, 28% { transform: translate(calc(50vw - 41px), calc(50vh - 31px)) scale(45); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes splash-fade-out {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.splash-sparkle {
+  position: fixed; top: 14px; left: 24px; font-size: 1.4rem; line-height: 1;
+  opacity: 0; animation: splash-sparkle-pop 0.7s ease forwards;
+}
+/* the offset has to live in a custom property, not a plain `transform` --
+   the keyframes below set `transform` too, and would just overwrite it,
+   stacking all three sparkles on top of each other instead of scattering them */
+.splash-sparkle-1 { --sx: -6px; --sy: -14px; animation-delay: 1.3s; }
+.splash-sparkle-2 { --sx: 30px; --sy: -6px; animation-delay: 1.4s; }
+.splash-sparkle-3 { --sx: 10px; --sy: 24px; animation-delay: 1.5s; }
+@keyframes splash-sparkle-pop {
+  0% { opacity: 0; transform: translate(var(--sx), var(--sy)) scale(0.4); }
+  40% { opacity: 1; transform: translate(var(--sx), var(--sy)) scale(1.15) translateY(-4px); }
+  100% { opacity: 0; transform: translate(var(--sx), var(--sy)) scale(0.9) translateY(-14px); }
 }

@@ -110,6 +110,16 @@ export default function AudioRecorder({ onRecordingReady }) {
         onRecordingReady(file);
       };
 
+      // a device disconnect or encoder failure mid-recording fires this instead
+      // of onstop -- without releasing the stream here, the mic stays "in use"
+      // (browser indicator stays lit) with no way back to idle in the UI
+      recorder.onerror = (e) => {
+        releaseStream();
+        clearInterval(timerRef.current);
+        setStatus('error');
+        setMessage(e.error?.message || 'recording stopped unexpectedly. try again.');
+      };
+
       recorder.start();
       setStatus('recording');
       setSeconds(0);

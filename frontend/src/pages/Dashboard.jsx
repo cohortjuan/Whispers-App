@@ -18,8 +18,12 @@ export default function Dashboard() {
 
   async function handleDelete(person) {
     if (!confirm(`delete ${person.first_name} ${person.last_name}? this removes their clips and relationships too, can't be undone.`)) return;
-    await api.people.remove(person.id);
-    setPeople((ps) => ps.filter((p) => p.id !== person.id));
+    try {
+      await api.people.remove(person.id);
+      setPeople((ps) => ps.filter((p) => p.id !== person.id));
+    } catch (err) {
+      alert(`couldn't delete: ${err.message}`);
+    }
   }
 
   return (

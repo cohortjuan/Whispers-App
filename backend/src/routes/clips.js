@@ -63,6 +63,10 @@ clipsRouter.post('/', upload.single('file'), async (req, res, next) => {
       fs.unlink(req.file.path, () => {});
       return res.status(400).json({ error: 'person_id and title are required' });
     }
+    if (media_type !== undefined && media_type !== 'audio' && media_type !== 'video') {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ error: "media_type must be 'audio' or 'video'" });
+    }
 
     const personCheck = await pool.query('SELECT id FROM people WHERE id = $1', [person_id]);
     if (personCheck.rows.length === 0) {
@@ -83,7 +87,7 @@ clipsRouter.post('/', upload.single('file'), async (req, res, next) => {
         req.file.originalname,
         req.file.mimetype,
         req.file.size,
-        media_type === 'video' ? 'video' : 'audio',
+        media_type || 'audio',
         recorded_date || null,
       ]
     );
@@ -116,7 +120,7 @@ clipsRouter.put('/:id', async (req, res, next) => {
       [
         title !== undefined ? title.trim() : current.title,
         description !== undefined ? description : current.description,
-        recorded_date !== undefined ? recorded_date : current.recorded_date,
+        recorded_date !== undefined ? (recorded_date || null) : current.recorded_date,
         id,
       ]
     );

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
+import { classifyRelationship } from '../utils.js';
 import TreeNode from '../components/TreeNode.jsx';
 
 // pulls every person + every relationship and builds the whole tree client side.
@@ -22,20 +23,22 @@ export default function FamilyTree() {
   const peopleById = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p])), [people]);
 
   // parentsMap: childId -> [parentIds], childrenMap: parentId -> [childIds]
-  // spousesMap: personId -> [spouseIds], filled in both directions since it's symmetric
+  // spousesMap: personId -> [spouseIds], filled in both directions since it's
+  // symmetric -- classifyRelationship is the same direction logic
+  // PersonDetail.jsx uses for a single person's own family links
   const { parentsMap, childrenMap, spousesMap } = useMemo(() => {
     const parents = {};
     const children = {};
     const spouses = {};
 
     for (const rel of relationships) {
-      if (rel.relationship_type === 'parent') {
-        (children[rel.person_id] ??= []).push(rel.related_person_id);
-        (parents[rel.related_person_id] ??= []).push(rel.person_id);
-      } else if (rel.relationship_type === 'spouse') {
-        (spouses[rel.person_id] ??= []).push(rel.related_person_id);
-        (spouses[rel.related_person_id] ??= []).push(rel.person_id);
-      }
+      const fromPerson = classifyRelationship(rel, rel.person_id);
+      if (fromPerson.role === 'child') (children[rel.person_id] ??= []).push(fromPerson.otherId);
+      else if (fromPerson.role === 'spouse') (spouses[rel.person_id] ??= []).push(fromPerson.otherId);
+
+      const fromRelated = classifyRelationship(rel, rel.related_person_id);
+      if (fromRelated.role === 'parent') (parents[rel.related_person_id] ??= []).push(fromRelated.otherId);
+      else if (fromRelated.role === 'spouse') (spouses[rel.related_person_id] ??= []).push(fromRelated.otherId);
     }
 
     return { parentsMap: parents, childrenMap: children, spousesMap: spouses };
@@ -61,7 +64,16 @@ export default function FamilyTree() {
       renderedIds.add(personId);
 
       const spouseIds = (spousesMap[personId] || []).filter((id) => peopleById[id] && !renderedIds.has(id));
-      spouseIds.forEach((id) => renderedIds.add(id));
+      // only claim a spouse as "already drawn" if they have no recorded parents
+      // of their own -- otherwise someone who married into the family would get
+      // claimed here first and then silently vanish when the recursion later
+      // reaches their real parents (claimed nodes are skipped, see line above).
+      // they'll still show up paired with their spouse here; letting them also
+      // render once under their real parents is a fine tradeoff for never
+      // losing someone from their own family branch
+      spouseIds.forEach((id) => {
+        if (!parentsMap[id] || parentsMap[id].length === 0) renderedIds.add(id);
+      });
 
       const childIdSet = new Set([
         ...(childrenMap[personId] || []),
@@ -76,7 +88,7 @@ export default function FamilyTree() {
     }
 
     return roots.map((r) => buildNode(r.id)).filter(Boolean);
-  }, [roots, peopleById, childrenMap, spousesMap]);
+  }, [roots, peopleById, parentsMap, childrenMap, spousesMap]);
 
   if (loading) return <div className="loading">loading...</div>;
   if (error) return <div className="form-error">{error}</div>;

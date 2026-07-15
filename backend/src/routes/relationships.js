@@ -57,6 +57,21 @@ relationshipsRouter.post('/', async (req, res, next) => {
       return res.status(404).json({ error: 'both person_id and related_person_id must reference real people' });
     }
 
+    // the unique constraint only catches an exact-order duplicate -- also check
+    // the reverse tuple, since "A married to B" and "B married to A" (or "A
+    // parent of B" + "B parent of A") are the same/contradictory relationship
+    // even though they're different rows
+    const reverseCheck = await pool.query(
+      'SELECT id FROM relationships WHERE person_id = $1 AND related_person_id = $2 AND relationship_type = $3',
+      [related_person_id, person_id, relationship_type]
+    );
+    if (reverseCheck.rows.length > 0) {
+      const message = relationship_type === 'spouse'
+        ? 'that relationship already exists'
+        : 'that would contradict an existing parent relationship between these two people';
+      return res.status(409).json({ error: message });
+    }
+
     const result = await pool.query(
       `INSERT INTO relationships (person_id, related_person_id, relationship_type)
        VALUES ($1, $2, $3)
