@@ -30,15 +30,17 @@ export default function NavBar() {
         <Link to="/">People</Link>
         <Link to="/tree">Family Tree</Link>
         <Link to="/people/new">+ Add Person</Link>
-        <button
-          type="button"
-          className="theme-toggle"
-          onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-          title={theme === 'dark' ? 'switch to light mode' : 'switch to dark mode'}
-        >
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button>
       </div>
+      {/* pinned to the corner via css, not part of the navbar-links flow --
+          otherwise it wraps down with the other links on narrow screens */}
+      <button
+        type="button"
+        className="theme-toggle"
+        onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+        title={theme === 'dark' ? 'switch to light mode' : 'switch to dark mode'}
+      >
+        {theme === 'dark' ? '☀️' : '🌙'}
+      </button>
     </nav>
   );
 }

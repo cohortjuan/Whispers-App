@@ -80,6 +80,7 @@ body {
 
 /* nav */
 .navbar {
+  position: relative;
   background: var(--color-primary);
   color: #fff;
   padding: 14px 24px;
@@ -90,10 +91,13 @@ body {
 .navbar-brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; letter-spacing: 0.01em; text-decoration: none; color: #fff; }
 .navbar-logo { width: 34px; height: 34px; transition: transform 0.35s ease; }
 .navbar-brand:hover .navbar-logo { transform: rotate(-8deg) scale(1.08); }
-.navbar-links { display: flex; gap: 20px; }
+.navbar-links { display: flex; gap: 20px; padding-right: 44px; }
 .navbar-links a { color: #f4e9db; text-decoration: none; font-size: 0.95rem; }
 .navbar-links a:hover { color: #fff; text-decoration: underline; }
+/* pinned to the navbar's own corner (not part of the links flow) so it stays
+   put in the upper right even when the links wrap under it on narrow screens */
 .theme-toggle {
+  position: absolute; top: 14px; right: 24px;
   display: flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; border-radius: 50%; padding: 0;
   background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3);
@@ -354,7 +358,8 @@ h2 { font-variant: small-caps; letter-spacing: 0.05em; font-size: 1.2rem; margin
   .navbar { flex-wrap: wrap; padding: 10px 14px; row-gap: 8px; }
   .navbar-brand { font-size: 1.1rem; gap: 8px; }
   .navbar-logo { width: 28px; height: 28px; }
-  .navbar-links { gap: 12px; font-size: 0.88rem; row-gap: 6px; }
+  .navbar-links { gap: 12px; font-size: 0.88rem; row-gap: 6px; padding-right: 40px; }
+  .theme-toggle { top: 10px; right: 14px; }
 
   .page-header { padding: 0; }
   .page-header-actions { position: static; justify-content: center; margin: 14px auto 0; }
