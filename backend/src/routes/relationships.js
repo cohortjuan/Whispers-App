@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { pool } from '../db/pool.js';
+import { pool, queryOrNotFound } from '../db/pool.js';
 
 export const relationshipsRouter = Router();
 
@@ -52,19 +52,22 @@ relationshipsRouter.post('/', async (req, res, next) => {
       return res.status(400).json({ error: 'a person cannot have a relationship with themselves' });
     }
 
-    const peopleCheck = await pool.query('SELECT id FROM people WHERE id IN ($1, $2)', [person_id, related_person_id]);
+    // neither check depends on the other's result, so run them together
+    // instead of waiting on one full round trip before starting the next
+    const [peopleCheck, reverseCheck] = await Promise.all([
+      pool.query('SELECT id FROM people WHERE id IN ($1, $2)', [person_id, related_person_id]),
+      // the unique constraint only catches an exact-order duplicate -- also check
+      // the reverse tuple, since "A married to B" and "B married to A" (or "A
+      // parent of B" + "B parent of A") are the same/contradictory relationship
+      // even though they're different rows
+      pool.query(
+        'SELECT id FROM relationships WHERE person_id = $1 AND related_person_id = $2 AND relationship_type = $3',
+        [related_person_id, person_id, relationship_type]
+      ),
+    ]);
     if (peopleCheck.rows.length !== 2) {
       return res.status(404).json({ error: 'both person_id and related_person_id must reference real people' });
     }
-
-    // the unique constraint only catches an exact-order duplicate -- also check
-    // the reverse tuple, since "A married to B" and "B married to A" (or "A
-    // parent of B" + "B parent of A") are the same/contradictory relationship
-    // even though they're different rows
-    const reverseCheck = await pool.query(
-      'SELECT id FROM relationships WHERE person_id = $1 AND related_person_id = $2 AND relationship_type = $3',
-      [related_person_id, person_id, relationship_type]
-    );
     if (reverseCheck.rows.length > 0) {
       const message = relationship_type === 'spouse'
         ? 'that relationship already exists'
@@ -92,10 +95,8 @@ relationshipsRouter.post('/', async (req, res, next) => {
 relationshipsRouter.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('DELETE FROM relationships WHERE id = $1 RETURNING id', [id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: `relationship ${id} not found` });
-    }
+    const deleted = await queryOrNotFound(res, 'DELETE FROM relationships WHERE id = $1 RETURNING id', [id], `relationship ${id} not found`);
+    if (!deleted) return;
     res.status(204).send();
   } catch (err) {
     next(err);

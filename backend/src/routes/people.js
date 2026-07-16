@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import fs from 'fs';
 import path from 'path';
-import { pool } from '../db/pool.js';
+import { pool, queryOrNotFound } from '../db/pool.js';
 import { UPLOAD_DIR } from '../middleware/upload.js';
 
 export const peopleRouter = Router();
@@ -56,19 +56,19 @@ peopleRouter.get('/', async (req, res, next) => {
 peopleRouter.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(
+    const person = await queryOrNotFound(
+      res,
       `SELECT p.*,
               COUNT(c.id)::int AS clip_count
        FROM people p
        LEFT JOIN clips c ON c.person_id = p.id
        WHERE p.id = $1
        GROUP BY p.id`,
-      [id]
+      [id],
+      `person ${id} not found`
     );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: `person ${id} not found` });
-    }
-    res.json(result.rows[0]);
+    if (!person) return;
+    res.json(person);
   } catch (err) {
     next(err);
   }
@@ -103,7 +103,9 @@ peopleRouter.post('/', async (req, res, next) => {
   }
 });
 
-// PUT /api/people/:id - edit an existing person, only sends fields that changed
+// PUT /api/people/:id - edit an existing person, only sends fields that changed.
+// builds the SET clause from whatever was actually sent instead of a
+// select-then-merge-then-update-everything round trip
 peopleRouter.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -112,41 +114,24 @@ peopleRouter.put('/:id', async (req, res, next) => {
       return res.status(400).json({ error: errors.join(', ') });
     }
 
-    const existing = await pool.query('SELECT * FROM people WHERE id = $1', [id]);
-    if (existing.rows.length === 0) {
-      return res.status(404).json({ error: `person ${id} not found` });
+    const sets = ['updated_at = now()'];
+    const params = [];
+    for (const [field, value] of Object.entries(values)) {
+      if (value === undefined) continue;
+      const clean = typeof value === 'string' && (field === 'first_name' || field === 'last_name') ? value.trim() : (value || null);
+      params.push(clean);
+      sets.push(`${field} = $${params.length}`);
     }
-    const current = existing.rows[0];
+    params.push(id);
 
-    // fall back to the current value for anything that wasn't sent
-    const merged = {
-      first_name: values.first_name !== undefined ? values.first_name.trim() : current.first_name,
-      last_name: values.last_name !== undefined ? values.last_name.trim() : current.last_name,
-      nickname: values.nickname !== undefined ? values.nickname : current.nickname,
-      birth_date: values.birth_date !== undefined ? values.birth_date : current.birth_date,
-      death_date: values.death_date !== undefined ? values.death_date : current.death_date,
-      bio: values.bio !== undefined ? values.bio : current.bio,
-      photo_url: values.photo_url !== undefined ? values.photo_url : current.photo_url,
-    };
-
-    const result = await pool.query(
-      `UPDATE people
-       SET first_name = $1, last_name = $2, nickname = $3, birth_date = $4,
-           death_date = $5, bio = $6, photo_url = $7, updated_at = now()
-       WHERE id = $8
-       RETURNING *`,
-      [
-        merged.first_name,
-        merged.last_name,
-        merged.nickname || null,
-        merged.birth_date || null,
-        merged.death_date || null,
-        merged.bio || null,
-        merged.photo_url || null,
-        id,
-      ]
+    const person = await queryOrNotFound(
+      res,
+      `UPDATE people SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      params,
+      `person ${id} not found`
     );
-    res.json(result.rows[0]);
+    if (!person) return;
+    res.json(person);
   } catch (err) {
     next(err);
   }
@@ -160,10 +145,8 @@ peopleRouter.delete('/:id', async (req, res, next) => {
 
     const clipsResult = await pool.query('SELECT file_path FROM clips WHERE person_id = $1', [id]);
 
-    const result = await pool.query('DELETE FROM people WHERE id = $1 RETURNING id', [id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: `person ${id} not found` });
-    }
+    const deleted = await queryOrNotFound(res, 'DELETE FROM people WHERE id = $1 RETURNING id', [id], `person ${id} not found`);
+    if (!deleted) return;
 
     // best effort file cleanup, don't block the response on it
     for (const row of clipsResult.rows) {

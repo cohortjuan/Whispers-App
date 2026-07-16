@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
-import { lifespan, classifyRelationship } from '../utils.js';
+import { lifespan, classifyRelationship, fullName } from '../utils.js';
 import ClipPlayer from '../components/ClipPlayer.jsx';
 import ClipUploadForm from '../components/ClipUploadForm.jsx';
 import RelationshipForm from '../components/RelationshipForm.jsx';
@@ -13,13 +13,11 @@ function FamilyLinkBadge({ person, onRemove }) {
   if (!person) return null;
   return (
     <div className="family-link-badge">
-      <button className="family-link-remove" onClick={onRemove} title={`remove link to ${person.first_name}`}>
+      <button className="remove-badge family-link-remove" onClick={onRemove} title={`remove link to ${person.first_name}`}>
         &times;
       </button>
-      <Link to={`/people/${person.id}`} className="family-link-name-wrap">
-        <div className="tree-person-name">
-          {person.first_name} {person.last_name}{person.nickname ? ` "${person.nickname}"` : ''}
-        </div>
+      <Link to={`/people/${person.id}`} className="tree-person">
+        <div className="tree-person-name">{fullName(person)}</div>
         <div className="tree-person-dates">{lifespan(person)}</div>
       </Link>
     </div>
@@ -123,7 +121,7 @@ export default function PersonDetail() {
     <div>
       <div className="page-header">
         <div>
-          <h1>{person.first_name} {person.last_name}{person.nickname ? ` "${person.nickname}"` : ''}</h1>
+          <h1>{fullName(person)}</h1>
           <p className="page-subtitle">{lifespan(person)}</p>
         </div>
         <div className="page-header-actions">
@@ -137,7 +135,7 @@ export default function PersonDetail() {
           src={person.photo_url}
           alt={person.first_name}
           style={{
-            width: 160, height: 160, objectFit: 'cover', borderRadius: '50%', marginBottom: 16,
+            width: 160, height: 160, objectFit: 'cover', borderRadius: '50%', margin: '0 auto 16px', display: 'block',
             border: '3px solid var(--color-surface)', boxShadow: '0 0 0 2px var(--color-border), var(--shadow)',
           }}
         />
@@ -149,7 +147,7 @@ export default function PersonDetail() {
         <p className="record-hero-subtitle">
           this is what Whispers is for -- hit record and keep it, before it's just a memory of a memory.
         </p>
-        <ClipUploadForm personId={id} onUploaded={load} />
+        <ClipUploadForm personId={id} onUploaded={(clip) => setClips((cs) => [clip, ...cs])} />
       </div>
 
       <div className="section">
@@ -170,9 +168,7 @@ export default function PersonDetail() {
 
             <div className="family-links-row family-links-self-row">
               <div className="family-links-self">
-                <div className="tree-person-name">
-                  {person.first_name} {person.last_name}{person.nickname ? ` "${person.nickname}"` : ''}
-                </div>
+                <div className="tree-person-name">{fullName(person)}</div>
                 <div className="tree-person-dates">{lifespan(person)}</div>
               </div>
               {familyLinks.spouses.map(({ relId, otherId }) => (
@@ -195,7 +191,7 @@ export default function PersonDetail() {
             )}
           </div>
         )}
-        <RelationshipForm personId={id} otherPeople={otherPeople} onCreated={load} />
+        <RelationshipForm personId={id} otherPeople={otherPeople} onCreated={(rel) => setRelationships((rs) => [...rs, rel])} />
       </div>
 
       <div className="section">

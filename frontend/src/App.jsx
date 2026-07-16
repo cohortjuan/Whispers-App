@@ -5,8 +5,8 @@ import Dashboard from './pages/Dashboard.jsx';
 import PersonForm from './pages/PersonForm.jsx';
 import PersonDetail from './pages/PersonDetail.jsx';
 import FamilyTree from './pages/FamilyTree.jsx';
+import About from './pages/About.jsx';
 
-// just the router + a persistent nav bar up top, nothing fancy
 export default function App() {
   return (
     <div className="app-shell">
@@ -19,6 +19,7 @@ export default function App() {
           <Route path="/people/:id" element={<PersonDetail />} />
           <Route path="/people/:id/edit" element={<PersonForm mode="edit" />} />
           <Route path="/tree" element={<FamilyTree />} />
+          <Route path="/about" element={<About />} />
         </Routes>
       </main>
     </div>

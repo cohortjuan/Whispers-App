@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { lifespan } from '../utils.js';
+import { lifespan, fullName } from '../utils.js';
 
 // recursive node: renders a person (+ their spouse if they have one) as a
 // little "couple" box, then their kids underneath, who each do the same thing.
@@ -34,10 +34,7 @@ export default function TreeNode({ node }) {
 function PersonBadge({ person }) {
   return (
     <Link to={`/people/${person.id}`} className="tree-person">
-      <div className="tree-person-name">
-        {person.first_name} {person.last_name}
-        {person.nickname ? ` "${person.nickname}"` : ''}
-      </div>
+      <div className="tree-person-name">{fullName(person)}</div>
       <div className="tree-person-dates">{lifespan(person)}</div>
     </Link>
   );

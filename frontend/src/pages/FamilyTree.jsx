@@ -44,18 +44,14 @@ export default function FamilyTree() {
     return { parentsMap: parents, childrenMap: children, spousesMap: spouses };
   }, [relationships]);
 
-  // roots = anyone with no recorded parents, they're the top of their branch
-  const roots = useMemo(
-    () => people.filter((p) => !parentsMap[p.id] || parentsMap[p.id].length === 0),
-    [people, parentsMap]
-  );
-
   // builds the actual nested tree structure once, up front, as plain data --
   // renderedIds lives only inside this useMemo call so a couple who are both
   // "roots" only get drawn once, without mutating anything React re-renders with
   // (mutating a Set handed down as a prop broke under StrictMode's double-render)
   const treeRoots = useMemo(() => {
     const renderedIds = new Set();
+    // roots = anyone with no recorded parents, they're the top of their branch
+    const roots = people.filter((p) => !parentsMap[p.id] || parentsMap[p.id].length === 0);
 
     function buildNode(personId) {
       if (renderedIds.has(personId)) return null;
@@ -88,7 +84,7 @@ export default function FamilyTree() {
     }
 
     return roots.map((r) => buildNode(r.id)).filter(Boolean);
-  }, [roots, peopleById, parentsMap, childrenMap, spousesMap]);
+  }, [people, peopleById, parentsMap, childrenMap, spousesMap]);
 
   if (loading) return <div className="loading">loading...</div>;
   if (error) return <div className="form-error">{error}</div>;

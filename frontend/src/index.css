@@ -10,11 +10,17 @@
   --color-primary: #8c4a3a;
   --color-primary-dark: #6e392c;
   --color-accent: #c99a4b;
+  --color-accent-rgb: 201, 154, 75;
   --color-danger: #b3392f;
   --shadow-rgb: 58, 47, 40;
   --color-photo-bg: #eee1d1;
   --color-danger-bg: #fbe4e1;
   --radius: 14px;
+  /* the navbar logo's spot -- shared by the toggle (mirrored to the other
+     corner) and the splash intro, which has to land exactly on top of it */
+  --logo-size: 34px;
+  --logo-top: 14px;
+  --logo-inset: 24px;
   --shadow: 0 6px 18px rgba(var(--shadow-rgb), 0.12);
 }
 
@@ -29,6 +35,7 @@
   --color-primary: #7c4dab;
   --color-primary-dark: #5a3480;
   --color-accent: #dbb86c;
+  --color-accent-rgb: 219, 184, 108;
   --color-danger: #e0655b;
   --shadow-rgb: 0, 0, 0;
   --color-photo-bg: #3a2b4d;
@@ -93,7 +100,7 @@ body {
   font-family: var(--font-display); font-optical-sizing: auto;
   font-style: italic; font-weight: 600; font-size: 1.55rem; letter-spacing: 0.01em;
 }
-.navbar-logo { width: 34px; height: 34px; transition: transform 0.35s ease; }
+.navbar-logo { width: var(--logo-size); height: var(--logo-size); transition: transform 0.35s ease; }
 .navbar-brand:hover .navbar-logo { transform: rotate(-8deg) scale(1.08); }
 .navbar-links { display: flex; gap: 20px; padding-right: 44px; }
 .navbar-links a { color: #f4e9db; text-decoration: none; font-size: 0.95rem; }
@@ -101,7 +108,7 @@ body {
 /* pinned to the navbar's own corner (not part of the links flow) so it stays
    put in the upper right even when the links wrap under it on narrow screens */
 .theme-toggle {
-  position: absolute; top: 14px; right: 24px;
+  position: absolute; top: var(--logo-top); right: var(--logo-inset);
   display: flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; border-radius: 50%; padding: 0;
   background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3);
@@ -113,8 +120,10 @@ body {
 /* headers */
 /* centered title block, with any action buttons pinned in the corner instead
    of sitting in a flex row next to the title -- keeps "Your Family" (and
-   every person's name) dead center along with the ornament and caption under it */
-.page-header { position: relative; text-align: center; margin-bottom: 20px; padding: 0 170px; }
+   every person's name) dead center along with the ornament and caption under it.
+   titles here are always short (a person's name, "Family Tree", ...) so they
+   never reach far enough out to meet the corner buttons */
+.page-header { position: relative; text-align: center; margin-bottom: 20px; }
 .page-header h1 { margin: 0; font-size: 1.9rem; font-family: var(--font-display); font-optical-sizing: auto; font-weight: 700; }
 .page-header h1::after {
   content: '\2500\2500 \2766 \2500\2500'; /* a small gold rule-flourish-rule under every page title */
@@ -180,23 +189,28 @@ h2 { font-variant: small-caps; letter-spacing: 0.05em; font-size: 1.2rem; margin
 .person-card-link { text-decoration: none; color: inherit; display: block; text-align: center; transition: box-shadow 0.2s ease; }
 .person-card:hover .person-card-link { box-shadow: 0 10px 22px rgba(var(--shadow-rgb), 0.18); }
 
-.person-card-remove {
-  position: absolute; top: -8px; right: -8px; z-index: 1; width: 24px; height: 24px; border-radius: 50%;
+/* small corner "x" to unlink/delete something -- shared look, two spots use
+   it slightly differently: dashboard cards reveal it on hover (dense grid,
+   stays tidy at rest), family links show it always (already a deliberate list) */
+.remove-badge {
+  position: absolute; top: -8px; right: -8px; border-radius: 50%;
   background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-danger);
-  font-size: 0.95rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
-  box-shadow: var(--shadow); font-family: inherit; padding: 0; opacity: 0; transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+  line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow); font-family: inherit; padding: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
+.remove-badge:hover { background: var(--color-danger); color: #fff; border-color: var(--color-danger); }
+
+.person-card-remove { width: 24px; height: 24px; font-size: 0.95rem; z-index: 1; opacity: 0; }
 .person-card:hover .person-card-remove { opacity: 1; }
-.person-card-remove:hover { background: var(--color-danger); color: #fff; border-color: var(--color-danger); }
-.person-card-photo {
-  width: 65%; margin: 0 auto 12px; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%;
+.person-card-photo, .person-card-photo-placeholder {
+  width: 65%; margin: 0 auto 12px; aspect-ratio: 1 / 1; border-radius: 50%;
   background: var(--color-photo-bg); border: 3px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-border);
 }
+.person-card-photo { object-fit: cover; }
 .person-card-photo-placeholder {
-  width: 65%; margin: 0 auto 12px; aspect-ratio: 1 / 1; border-radius: 50%;
-  background: var(--color-photo-bg); display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   font-size: 1.8rem; color: var(--color-primary); font-weight: bold;
-  border: 3px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-border);
 }
 .person-card-name { font-size: 1.05rem; font-weight: bold; }
 .person-card-dates { color: var(--color-text-muted); font-size: 0.85rem; margin-top: 2px; }
@@ -219,7 +233,7 @@ h2 { font-variant: small-caps; letter-spacing: 0.05em; font-size: 1.2rem; margin
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .form-input:focus, .form-textarea:focus, select.form-input:focus {
-  outline: none; border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(201, 154, 75, 0.25);
+  outline: none; border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.25);
 }
 .form-textarea { resize: vertical; min-height: 80px; }
 .form-error { background: var(--color-danger-bg); color: var(--color-danger); padding: 10px 12px; border-radius: 8px; font-size: 0.88rem; }
@@ -325,21 +339,10 @@ h2 { font-variant: small-caps; letter-spacing: 0.05em; font-size: 1.2rem; margin
 .family-links-spouse { display: flex; align-items: center; gap: 10px; }
 .family-links-amp { color: var(--color-text-muted); font-size: 1.1rem; }
 
+/* the linked-person card reuses .tree-person (below) -- same "name + dates
+   in a little box" look as the Family Tree page, so it's one class not two */
 .family-link-badge { position: relative; }
-.family-link-name-wrap {
-  display: block; text-decoration: none; color: inherit; background: var(--color-surface);
-  border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow);
-  padding: 10px 14px; min-width: 140px; text-align: center;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-.family-link-name-wrap:hover { transform: translateY(-3px); box-shadow: 0 6px 14px rgba(var(--shadow-rgb), 0.14); }
-.family-link-remove {
-  position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%;
-  background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-danger);
-  font-size: 0.9rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
-  box-shadow: var(--shadow); font-family: inherit; padding: 0;
-}
-.family-link-remove:hover { background: var(--color-danger); color: #fff; border-color: var(--color-danger); }
+.family-link-remove { width: 22px; height: 22px; font-size: 0.9rem; }
 
 /* family tree */
 .tree { overflow-x: auto; padding: 20px 0; }
@@ -356,7 +359,7 @@ h2 { font-variant: small-caps; letter-spacing: 0.05em; font-size: 1.2rem; margin
 .section { margin-top: 32px; }
 .section + .section { padding-top: 28px; border-top: 1px dashed var(--color-border); }
 
-.bio-text { font-style: italic; color: var(--color-text-muted); font-size: 1.05rem; line-height: 1.5; }
+.bio-text { font-style: italic; color: var(--color-text-muted); font-size: 1.05rem; line-height: 1.5; text-align: center; }
 
 /* mobile: the desktop layout assumes room for a side gutter (page-header's
    corner action button) and a wide navbar -- neither exists on a narrow
@@ -364,15 +367,14 @@ h2 { font-variant: small-caps; letter-spacing: 0.05em; font-size: 1.2rem; margin
    different one: actions stack instead of pinning to a corner, and the
    navbar wraps instead of squeezing */
 @media (max-width: 640px) {
+  :root { --logo-size: 28px; --logo-top: 10px; --logo-inset: 14px; }
+
   .app-main { padding: 16px 14px 40px; }
 
   .navbar { flex-wrap: wrap; padding: 10px 14px; row-gap: 8px; }
   .navbar-brand { font-size: 1.1rem; gap: 8px; }
-  .navbar-logo { width: 28px; height: 28px; }
   .navbar-links { gap: 12px; font-size: 0.88rem; row-gap: 6px; padding-right: 40px; }
-  .theme-toggle { top: 10px; right: 14px; }
 
-  .page-header { padding: 0; }
   .page-header-actions { position: static; justify-content: center; margin: 14px auto 0; }
   .page-header h1 { font-size: 1.4rem; }
 
@@ -382,9 +384,6 @@ h2 { font-variant: small-caps; letter-spacing: 0.05em; font-size: 1.2rem; margin
   .record-button { width: 96px; height: 96px; }
 
   .dashboard-hero { flex-direction: column; }
-
-  /* landing spot has to match the shrunk mobile navbar logo (28px, 10px/14px padding) */
-  .splash-logo { top: 10px; left: 14px; width: 28px; height: 28px; }
 }
 
 /* one-time intro: the logo starts huge and centered ("close to the ancestors"),
@@ -396,31 +395,51 @@ h2 { font-variant: small-caps; letter-spacing: 0.05em; font-size: 1.2rem; margin
   animation: splash-fade-out 0.5s ease 1.6s forwards;
 }
 .splash-logo {
-  position: fixed; top: 14px; left: 24px; width: 34px; height: 34px;
+  position: fixed; top: var(--logo-top); left: var(--logo-inset); width: var(--logo-size); height: var(--logo-size);
   animation: splash-zoom 1.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 @keyframes splash-zoom {
   /* hold big for a beat so it actually reads as "covering the screen" before
      it shrinks -- an easing curve alone shrunk it almost immediately */
-  0%, 28% { transform: translate(calc(50vw - 41px), calc(50vh - 31px)) scale(45); }
+  0%, 28% {
+    transform: translate(calc(50vw - var(--logo-inset) - var(--logo-size) / 2), calc(50vh - var(--logo-top) - var(--logo-size) / 2)) scale(45);
+  }
   100% { transform: translate(0, 0) scale(1); }
 }
 @keyframes splash-fade-out {
   0% { opacity: 1; }
   100% { opacity: 0; }
 }
-.splash-sparkle {
-  position: fixed; top: 14px; left: 24px; font-size: 1.4rem; line-height: 1;
-  opacity: 0; animation: splash-sparkle-pop 0.7s ease forwards;
+/* sits inert at the logo's landed spot the whole time -- overflow:hidden
+   clips the sweeping bar below to a circular shine across the now-landed
+   logo, instead of a square streak floating past it */
+.splash-shimmer {
+  position: fixed; top: var(--logo-top); left: var(--logo-inset); width: var(--logo-size); height: var(--logo-size);
+  border-radius: 50%; overflow: hidden; pointer-events: none;
 }
-/* the offset has to live in a custom property, not a plain `transform` --
-   the keyframes below set `transform` too, and would just overwrite it,
-   stacking all three sparkles on top of each other instead of scattering them */
-.splash-sparkle-1 { --sx: -6px; --sy: -14px; animation-delay: 1.3s; }
-.splash-sparkle-2 { --sx: 30px; --sy: -6px; animation-delay: 1.4s; }
-.splash-sparkle-3 { --sx: 10px; --sy: 24px; animation-delay: 1.5s; }
-@keyframes splash-sparkle-pop {
-  0% { opacity: 0; transform: translate(var(--sx), var(--sy)) scale(0.4); }
-  40% { opacity: 1; transform: translate(var(--sx), var(--sy)) scale(1.15) translateY(-4px); }
-  100% { opacity: 0; transform: translate(var(--sx), var(--sy)) scale(0.9) translateY(-14px); }
+.splash-shimmer::after {
+  content: '';
+  position: absolute; top: -30%; left: -70%; width: 45%; height: 160%;
+  background: linear-gradient(100deg, transparent 15%, rgba(255, 255, 255, 0.95) 50%, transparent 85%);
+  transform: translateX(-30px) rotate(20deg);
+  opacity: 0;
+  animation: splash-shimmer-sweep 0.9s ease-out 1.3s;
+}
+@keyframes splash-shimmer-sweep {
+  0% { transform: translateX(-30px) rotate(20deg); opacity: 0; }
+  15% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { transform: translateX(90px) rotate(20deg); opacity: 0; }
+}
+
+/* about page */
+.about-blurb { max-width: 720px; margin: 0 auto; }
+.about-blurb p { margin: 0 0 20px; line-height: 1.7; }
+.about-blurb p:last-child { margin-bottom: 0; }
+
+/* full-bleed on purpose -- breaks out of .app-main's centered column to
+   span the whole viewport width, not just the width of the text above it */
+.about-video {
+  display: block; width: 100vw; position: relative; left: 50%; right: 50%;
+  margin: 32px -50vw 0; max-height: 70vh; object-fit: cover;
 }

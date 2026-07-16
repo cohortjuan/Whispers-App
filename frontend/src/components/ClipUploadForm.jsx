@@ -45,12 +45,12 @@ export default function ClipUploadForm({ personId, onUploaded }) {
 
     setUploading(true);
     try {
-      await api.clips.create(formData);
+      const clip = await api.clips.create(formData);
       setTitle('');
       setDescription('');
       setRecordedDate('');
       setFile(null);
-      onUploaded();
+      onUploaded(clip);
     } catch (err) {
       setError(err.message);
     } finally {

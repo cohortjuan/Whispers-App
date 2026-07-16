@@ -35,9 +35,9 @@ export default function RelationshipForm({ personId, otherPeople, onCreated }) {
 
     setSaving(true);
     try {
-      await api.relationships.create(body);
+      const relationship = await api.relationships.create(body);
       setRelatedId('');
-      onCreated();
+      onCreated(relationship);
     } catch (err) {
       setError(err.message);
     } finally {

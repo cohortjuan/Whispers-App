@@ -42,3 +42,15 @@ export async function testConnection() {
     client.release();
   }
 }
+
+// every route's "get/update/delete by id" handler ends the same way: run the
+// query, and if nothing came back, send a 404 instead of the row. this does
+// both parts so the routes don't each repeat the same length-check
+export async function queryOrNotFound(res, query, params, notFoundMessage) {
+  const result = await pool.query(query, params);
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: notFoundMessage });
+    return null;
+  }
+  return result.rows[0];
+}

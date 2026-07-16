@@ -22,7 +22,7 @@ export function initials(person) {
 
 export function fullName(person) {
   if (!person) return '';
-  return person.nickname ? `${person.first_name} "${person.nickname}" ${person.last_name}` : `${person.first_name} ${person.last_name}`;
+  return person.nickname ? `${person.first_name} ${person.last_name} "${person.nickname}"` : `${person.first_name} ${person.last_name}`;
 }
 
 // classifies a raw relationship row from ONE person's point of view -- both

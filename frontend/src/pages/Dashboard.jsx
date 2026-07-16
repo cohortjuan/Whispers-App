@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import PersonCard from '../components/PersonCard.jsx';
 
-// home page, just a grid of everyone in the family
 export default function Dashboard() {
   const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,10 +38,14 @@ export default function Dashboard() {
       <div className="dashboard-hero">
         <span className="dashboard-hero-icon">🎙️</span>
         <div>
-          <p className="dashboard-hero-line">keep a clip of your kids as they grow, or your parents before they go.</p>
+          <p className="dashboard-hero-line">
+            keep a clip of your kids as they grow, so you can embarrass them with it later -- or the whole family
+            singing happy birthday to grandma, and the stories that should outlast her.
+          </p>
           <p className="dashboard-hero-sub">
-            a photo freezes a face -- a recording keeps the laugh, the accent, the way she told it.
-            click into anyone below and hit record: whispers of the ancestors, passed down instead of lost.
+            a photo freezes a face -- a recording keeps the laugh, the accent, the way they told it. don't lose the
+            wisdom of your elders, or the precious moments before your kids grow up and leave the nest. click into
+            anyone below and hit record: whispers of the ancestors, kept for good.
           </p>
         </div>
       </div>

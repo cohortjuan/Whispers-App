@@ -3,15 +3,11 @@ import { Link } from 'react-router-dom';
 
 const THEME_KEY = 'whispers-theme';
 
-function getInitialTheme() {
-  const saved = localStorage.getItem(THEME_KEY);
-  if (saved === 'light' || saved === 'dark') return saved;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-// just the top bar, links to the two main views plus the add-person shortcut
 export default function NavBar() {
-  const [theme, setTheme] = useState(getInitialTheme);
+  // index.html's inline script already worked out light-vs-dark (localStorage,
+  // falling back to the OS preference) and set it on <html> before react even
+  // mounted, so read that instead of re-deriving the same thing a second time
+  const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme'));
 
   // the whole app themes off this one attribute on <html> -- every color in
   // index.css is a css variable that gets redefined under [data-theme="dark"]
@@ -29,6 +25,7 @@ export default function NavBar() {
       <div className="navbar-links">
         <Link to="/">People</Link>
         <Link to="/tree">Family Tree</Link>
+        <Link to="/about">🌰 About</Link>
         <Link to="/people/new">+ Add Person</Link>
       </div>
       {/* pinned to the corner via css, not part of the navbar-links flow --
