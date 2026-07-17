@@ -2,6 +2,8 @@
 
 :root {
   --font-display: "Fraunces", Georgia, "Iowan Old Style", serif;
+  --font-body:
+    "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --color-bg: #faf6f0;
   --color-surface: #fffaf1;
   --color-border: #e4d9c9;
@@ -49,7 +51,7 @@
 
 body {
   margin: 0;
-  font-family: "Georgia", "Iowan Old Style", serif;
+  font-family: var(--font-body);
   color: var(--color-text);
   background-color: var(--color-bg);
   transition:
@@ -155,23 +157,37 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   padding: 0;
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #fff;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-primary);
   font-size: 0.95rem;
   cursor: pointer;
   line-height: 1;
+  box-shadow: 0 6px 16px rgba(var(--shadow-rgb), 0.16);
   transition:
     transform 0.2s ease,
-    background 0.2s ease;
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+:root[data-theme="dark"] .theme-toggle {
+  background: var(--color-surface);
+  color: var(--color-accent);
+  border-color: var(--color-border);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
 }
 .theme-toggle:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: var(--color-photo-bg);
+  color: var(--color-primary-dark);
   transform: rotate(-12deg) scale(1.08);
+}
+:root[data-theme="dark"] .theme-toggle:hover {
+  background: #34294a;
+  color: var(--color-accent);
 }
 
 /* headers */
@@ -229,6 +245,7 @@ h2 {
 .page-subtitle {
   color: var(--color-text-muted);
   margin-top: 4px;
+  line-height: 1.45;
 }
 
 /* buttons */
@@ -398,16 +415,20 @@ h2 {
 .person-card-name {
   font-size: 1.05rem;
   font-weight: bold;
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
 }
 .person-card-dates {
   color: var(--color-text-muted);
   font-size: 0.85rem;
   margin-top: 2px;
+  line-height: 1.45;
 }
 .person-card-clips {
   color: var(--color-accent);
   font-size: 0.82rem;
   margin-top: 6px;
+  line-height: 1.4;
 }
 
 @keyframes pop-in {
@@ -1015,6 +1036,8 @@ select.form-input:focus {
 .about-blurb p {
   margin: 0 0 20px;
   line-height: 1.7;
+  font-size: 1.02rem;
+  letter-spacing: 0.01em;
 }
 .about-blurb p:last-child {
   margin-bottom: 0;
