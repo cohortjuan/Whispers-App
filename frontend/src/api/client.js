@@ -1,7 +1,12 @@
 // tiny wrapper around fetch so the components don't have to deal with
 // json headers / error handling every single time
 
-const API_URL = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD
+    ? "https://whispers-app.onrender.com/api"
+    : "http://localhost:5000/api")
+).replace(/\/$/, "");
 
 async function request(path, options = {}) {
   const res = await fetch(`${API_URL}${path}`, {
