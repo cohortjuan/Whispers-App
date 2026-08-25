@@ -58,4 +58,56 @@ CREATE INDEX IF NOT EXISTS idx_relationships_person_id ON relationships(person_i
 CREATE INDEX IF NOT EXISTS idx_relationships_related_person_id ON relationships(related_person_id);
 CREATE INDEX IF NOT EXISTS idx_clips_person_id ON clips(person_id);
 
+-- ---------------------------------------------------------------------
+-- users: login accounts. deliberately NOT the same thing as a `people`
+-- row -- everyone who logs in shares the same family tree data (no
+-- owner_id/family_id anywhere, no per-user data ownership), so a login
+-- only answers "is someone authenticated", not "which person are they"
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS users (
+  id                     SERIAL PRIMARY KEY,
+  -- always stored lowercased and compared lowercased in queries (see
+  -- backend/src/routes/auth.js normalizeEmail()) instead of relying on
+  -- the citext extension -- this schema doesn't use any extensions
+  -- elsewhere and hosted postgres providers vary on what they allow you
+  -- to CREATE EXTENSION, so plain VARCHAR + app-level normalization is
+  -- the safer default here
+  email                  VARCHAR(255) NOT NULL UNIQUE,
+  password_hash          TEXT NOT NULL,
+  display_name           VARCHAR(200) NOT NULL,
+  -- account lockout bookkeeping: consecutive bad login attempts and how
+  -- long the account is locked for, independent of which IP is trying.
+  -- reset to 0 / NULL on a successful login
+  failed_login_attempts  INTEGER NOT NULL DEFAULT 0,
+  locked_until           TIMESTAMPTZ,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------------
+-- sessions: server-validated login sessions. opaque random tokens, not
+-- signed JWTs, so a session can be revoked immediately (logout, or an
+-- admin doing it by hand) just by deleting the row -- a signed JWT would
+-- stay valid until it expired no matter what the server did
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sessions (
+  id           SERIAL PRIMARY KEY,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  -- sha256 of the raw session token. the raw token only ever lives in the
+  -- httpOnly cookie -- same principle as never storing a plaintext
+  -- password, a leaked users/sessions table alone shouldn't be enough to
+  -- forge a session
+  token_hash   TEXT NOT NULL UNIQUE,
+  -- double-submit csrf token tied to this specific session row (rather
+  -- than a bare stateless double-submit) -- see backend/src/middleware/csrf.js
+  csrf_token   TEXT NOT NULL,
+  user_agent   TEXT,
+  expires_at   TIMESTAMPTZ NOT NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- token_hash lookups are covered by the UNIQUE constraint's own index above;
+-- user_id isn't unique, so it needs its own index for session-cleanup queries
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+
 COMMIT;

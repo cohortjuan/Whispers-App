@@ -38,3 +38,9 @@ WHERE d.first_name = 'Diane' AND m.first_name = 'Marcus'
 ON CONFLICT DO NOTHING;
 
 COMMIT;
+
+-- no seed row for `users` on purpose: a bcrypt hash isn't something you can
+-- reasonably hand-write into a .sql file, and seeding a known password here
+-- would just be a permanent, publicly-visible backdoor into every deploy of
+-- this app. create your first login by calling the app itself:
+--   POST /api/auth/signup  { "email": ..., "password": ..., "display_name": ... }

@@ -150,6 +150,22 @@ body {
   color: #fff;
   text-decoration: underline;
 }
+/* Matches .navbar-links a visually, but it's a <button> (signing out is an
+   action, not a navigation) so the browser's default button chrome needs
+   resetting first. */
+.navbar-signout {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #f4e9db;
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.navbar-signout:hover {
+  color: #fff;
+  text-decoration: underline;
+}
 /* pinned to the navbar's own corner (not part of the links flow) so it stays
    put in the upper right even when the links wrap under it on narrow screens */
 .theme-toggle {
@@ -335,6 +351,33 @@ h2 {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+/* auth (login / signup) */
+/* Narrow and centered rather than stretching .form to the page's full width
+   like a person-record form does -- two or three fields don't need that
+   much horizontal room, and a narrower column reads more like "a door you
+   walk through" than another data-entry page. */
+.auth-page {
+  max-width: 420px;
+  margin: 40px auto 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 32px 28px 28px;
+}
+.auth-page .form-group small {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+.auth-switch {
+  text-align: center;
+  margin-top: 18px;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
 }
 
 /* cards / grid */

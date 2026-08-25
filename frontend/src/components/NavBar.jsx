@@ -1,11 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const THEME_KEY = "whispers-theme";
 
 export default function NavBar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  async function handleSignOut() {
+    await logout();
+    navigate("/login", { replace: true });
+  }
 
   // index.html's inline script already worked out light-vs-dark (localStorage,
   // falling back to the OS preference) and set it on <html> before react even
@@ -47,6 +54,11 @@ export default function NavBar() {
         <Link to="/tree">Family Tree</Link>
         <Link to="/about">🌰 About</Link>
         <Link to="/people/new">+ Add Person</Link>
+        {user ? (
+          <button type="button" className="navbar-signout" onClick={handleSignOut}>
+            Sign out
+          </button>
+        ) : null}
       </div>
       <button
         type="button"
