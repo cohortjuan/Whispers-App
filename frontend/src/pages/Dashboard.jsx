@@ -3,6 +3,12 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client.js";
 import PersonCard from "../components/PersonCard.jsx";
 
+// Mirrors the backend's own hard limit (peopleRouter's MAX_PEOPLE) -- this
+// copy is just for showing a proactive count/notice before someone hits
+// "add person" and gets a 403 as a surprise. The backend is still the real
+// enforcement; if these two numbers ever drift, the backend wins.
+const MAX_PEOPLE = 50;
+
 export default function Dashboard() {
   const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,10 +48,25 @@ export default function Dashboard() {
             a place for the voices, not just the names
           </p>
         </div>
-        <Link className="btn page-header-actions" to="/people/new">
-          + Add Person
-        </Link>
+        {people.length >= MAX_PEOPLE ? (
+          <span className="btn btn-secondary page-header-actions" aria-disabled="true" title={`this family tree is at its ${MAX_PEOPLE}-person limit on the free plan`}>
+            tree is full ({MAX_PEOPLE}/{MAX_PEOPLE})
+          </span>
+        ) : (
+          <Link className="btn page-header-actions" to="/people/new">
+            + Add Person
+          </Link>
+        )}
       </div>
+
+      {!loading && people.length > 0 && (
+        <p className="member-count">
+          {people.length} of {MAX_PEOPLE} family members
+          {people.length >= MAX_PEOPLE - 5 && people.length < MAX_PEOPLE
+            ? ' — getting close to the free plan limit'
+            : ''}
+        </p>
+      )}
 
       <div className="dashboard-hero">
         <span className="dashboard-hero-icon">🎙️</span>

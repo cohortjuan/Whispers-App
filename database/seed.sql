@@ -1,46 +1,50 @@
--- optional sample data so the app isn't empty the first time you open it
--- loaded automatically by docker-compose, or run manually:
--- psql "$DATABASE_URL" -f database/seed.sql
+-- This file intentionally seeds nothing. It used to insert a sample family
+-- (the "Reyes" household) so a fresh local checkout wasn't empty on first
+-- run -- fine for a demo, wrong for a real app: it meant a fresh production
+-- database briefly had four fake people sitting in it (or permanently, if
+-- someone forgot to run this against prod even once) until someone manually
+-- deleted them, and "delete the demo data" isn't a step a real launch should
+-- depend on remembering.
+--
+-- Still automatically executed by docker-compose on a fresh local database,
+-- same as before -- it's just an empty statement now, so a fresh checkout
+-- starts genuinely empty, matching what a fresh production database looks
+-- like on day one.
+--
+-- Want sample data back for local testing? Uncomment the block below (or
+-- copy it into your own scratch .sql file and run it yourself) -- it's kept
+-- here rather than deleted so nobody has to reconstruct it from scratch.
+--
+-- BEGIN;
+-- INSERT INTO people (first_name, last_name, nickname, birth_date, death_date, bio)
+-- VALUES
+--   ('Eleanor', 'Reyes', 'Nana', '1938-04-12', '2021-11-02', 'grew up on a farm in west texas, raised five kids, famous for her tamales'),
+--   ('Harold', 'Reyes', 'Pop', '1935-01-30', '2018-06-15', 'korean war veteran, worked as a machinist for 40 years'),
+--   ('Diane', 'Reyes', NULL, '1962-09-05', NULL, 'eleanor and harold''s oldest daughter'),
+--   ('Marcus', 'Reyes', NULL, '1988-03-21', NULL, 'diane''s son, started this project to keep the family stories around')
+-- ON CONFLICT DO NOTHING;
+--
+-- INSERT INTO relationships (person_id, related_person_id, relationship_type)
+-- SELECT h.id, e.id, 'spouse' FROM people h, people e
+-- WHERE h.first_name = 'Harold' AND e.first_name = 'Eleanor'
+-- ON CONFLICT DO NOTHING;
+--
+-- INSERT INTO relationships (person_id, related_person_id, relationship_type)
+-- SELECT e.id, d.id, 'parent' FROM people e, people d
+-- WHERE e.first_name = 'Eleanor' AND d.first_name = 'Diane'
+-- ON CONFLICT DO NOTHING;
+--
+-- INSERT INTO relationships (person_id, related_person_id, relationship_type)
+-- SELECT h.id, d.id, 'parent' FROM people h, people d
+-- WHERE h.first_name = 'Harold' AND d.first_name = 'Diane'
+-- ON CONFLICT DO NOTHING;
+--
+-- INSERT INTO relationships (person_id, related_person_id, relationship_type)
+-- SELECT d.id, m.id, 'parent' FROM people d, people m
+-- WHERE d.first_name = 'Diane' AND m.first_name = 'Marcus'
+-- ON CONFLICT DO NOTHING;
+-- COMMIT;
 
-BEGIN;
-
-INSERT INTO people (first_name, last_name, nickname, birth_date, death_date, bio)
-VALUES
-  ('Eleanor', 'Reyes', 'Nana', '1938-04-12', '2021-11-02', 'grew up on a farm in west texas, raised five kids, famous for her tamales'),
-  ('Harold', 'Reyes', 'Pop', '1935-01-30', '2018-06-15', 'korean war veteran, worked as a machinist for 40 years'),
-  ('Diane', 'Reyes', NULL, '1962-09-05', NULL, 'eleanor and harold''s oldest daughter'),
-  ('Marcus', 'Reyes', NULL, '1988-03-21', NULL, 'diane''s son, started this project to keep the family stories around')
-ON CONFLICT DO NOTHING;
-
--- wire up the relationships using the ids we just inserted
-INSERT INTO relationships (person_id, related_person_id, relationship_type)
-SELECT h.id, e.id, 'spouse'
-FROM people h, people e
-WHERE h.first_name = 'Harold' AND e.first_name = 'Eleanor'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO relationships (person_id, related_person_id, relationship_type)
-SELECT e.id, d.id, 'parent'
-FROM people e, people d
-WHERE e.first_name = 'Eleanor' AND d.first_name = 'Diane'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO relationships (person_id, related_person_id, relationship_type)
-SELECT h.id, d.id, 'parent'
-FROM people h, people d
-WHERE h.first_name = 'Harold' AND d.first_name = 'Diane'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO relationships (person_id, related_person_id, relationship_type)
-SELECT d.id, m.id, 'parent'
-FROM people d, people m
-WHERE d.first_name = 'Diane' AND m.first_name = 'Marcus'
-ON CONFLICT DO NOTHING;
-
-COMMIT;
-
--- no seed row for `users` on purpose: a bcrypt hash isn't something you can
--- reasonably hand-write into a .sql file, and seeding a known password here
--- would just be a permanent, publicly-visible backdoor into every deploy of
--- this app. create your first login by calling the app itself:
+-- no seed row for `users` either, same reasoning: create your first login by
+-- calling the app itself --
 --   POST /api/auth/signup  { "email": ..., "password": ..., "display_name": ... }

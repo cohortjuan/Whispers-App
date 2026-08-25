@@ -60,8 +60,14 @@ async function request(path, options = {}) {
   return data;
 }
 
-// builds a playable/downloadable url for a clip's audio/video file
+// builds a playable/downloadable url for a clip's audio/video file, or a
+// person's uploaded photo. Passes an already-absolute URL through unchanged
+// -- a person's photo_url can still be a plain external link someone typed
+// in (the field predates upload support and both are allowed), and that
+// case must not get "/uploads/" prepended in front of it.
 export function getFileUrl(filePath) {
+  if (!filePath) return filePath;
+  if (/^https?:\/\//i.test(filePath)) return filePath;
   const base = API_URL.replace(/\/api\/?$/, "");
   return `${base}/uploads/${filePath}`;
 }
@@ -78,10 +84,20 @@ export const api = {
   people: {
     list: () => request("/people"),
     get: (id) => request(`/people/${id}`),
+    // body can be a plain object (JSON, no photo change) or a FormData
+    // (includes a "photo" file field) -- request() already branches on
+    // that for the Content-Type header, this just avoids double-encoding
+    // a FormData body by JSON.stringify-ing it.
     create: (body) =>
-      request("/people", { method: "POST", body: JSON.stringify(body) }),
+      request("/people", {
+        method: "POST",
+        body: body instanceof FormData ? body : JSON.stringify(body),
+      }),
     update: (id, body) =>
-      request(`/people/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+      request(`/people/${id}`, {
+        method: "PUT",
+        body: body instanceof FormData ? body : JSON.stringify(body),
+      }),
     remove: (id) => request(`/people/${id}`, { method: "DELETE" }),
   },
   relationships: {

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { getFileUrl } from '../api/client.js';
 import { lifespan, initials, fullName } from '../utils.js';
 
 // one tile on the dashboard grid, click through to their full page.
@@ -17,7 +18,7 @@ export default function PersonCard({ person, onDelete }) {
       </button>
       <Link to={`/people/${person.id}`} className="person-card-link card">
         {person.photo_url ? (
-          <img className="person-card-photo" src={person.photo_url} alt={person.first_name} />
+          <img className="person-card-photo" src={getFileUrl(person.photo_url)} alt={person.first_name} />
         ) : (
           <div className="person-card-photo-placeholder">{initials(person)}</div>
         )}

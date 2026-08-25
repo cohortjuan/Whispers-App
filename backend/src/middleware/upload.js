@@ -48,3 +48,76 @@ export const upload = multer({
   fileFilter,
   limits: { fileSize: maxUploadMb * 1024 * 1024 },
 });
+
+// ---------------------------------------------------------------------
+// A second, stricter upload config for person avatars.
+//
+// The audio/video filter above trusts whatever mimetype the browser
+// reports, which is fine for clips (recorded in-browser or picked from
+// a file dialog, low stakes either way). A photo is a much more common
+// target for someone to deliberately mislabel, so this checks the
+// actual file bytes (a "magic number" every real image format starts
+// with) instead of trusting the client's word for it -- a renamed
+// script or executable with a faked Content-Type won't pass.
+// ---------------------------------------------------------------------
+
+const IMAGE_MAGIC_BYTES = [
+  { mime: 'image/jpeg', bytes: [0xff, 0xd8, 0xff] },
+  { mime: 'image/png', bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
+  // WebP: "RIFF" .... "WEBP" -- bytes 8-11 aren't part of the fixed
+  // signature (they're the chunk size), so that gap is skipped below.
+  { mime: 'image/webp', bytes: [0x52, 0x49, 0x46, 0x46], skip: 4, then: [0x57, 0x45, 0x42, 0x50] },
+];
+
+function matchesSignature(buffer, sig) {
+  for (let i = 0; i < sig.bytes.length; i++) {
+    if (buffer[i] !== sig.bytes[i]) return false;
+  }
+  if (sig.then) {
+    const offset = sig.bytes.length + sig.skip;
+    for (let i = 0; i < sig.then.length; i++) {
+      if (buffer[offset + i] !== sig.then[i]) return false;
+    }
+  }
+  return true;
+}
+
+export function isRealImage(buffer) {
+  return IMAGE_MAGIC_BYTES.some((sig) => matchesSignature(buffer, sig));
+}
+
+const photoStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = crypto.randomBytes(16).toString('hex');
+    const ext = path.extname(file.originalname) || '';
+    cb(null, `avatar-${Date.now()}-${uniqueSuffix}${ext}`);
+  },
+});
+
+// The mimetype check here is just a fast, cheap first pass to reject
+// obviously-wrong uploads before spending disk I/O -- isRealImage() on
+// the actual saved bytes (done in the route handler, after multer
+// writes the file) is the real gate, since mimetype alone is only what
+// the client claims.
+function photoFileFilter(req, file, cb) {
+  const baseType = file.mimetype.split(';')[0].trim().toLowerCase();
+  if (['image/jpeg', 'image/png', 'image/webp'].includes(baseType)) {
+    cb(null, true);
+  } else {
+    const err = new Error(`unsupported photo type: ${file.mimetype}. please upload a JPEG, PNG, or WebP image`);
+    err.status = 400;
+    cb(err);
+  }
+}
+
+// A profile photo has no business being anywhere near the 100MB clip
+// cap -- 5MB is generous for a single portrait-style image and keeps a
+// mistaken upload (or someone testing the limits) cheap to store.
+const MAX_PHOTO_MB = 5;
+
+export const photoUpload = multer({
+  storage: photoStorage,
+  fileFilter: photoFileFilter,
+  limits: { fileSize: MAX_PHOTO_MB * 1024 * 1024 },
+});

@@ -353,6 +353,76 @@ h2 {
   transform: none;
 }
 
+.member-count {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin: -8px 0 20px;
+}
+
+/* person photo upload */
+.photo-upload {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.photo-upload-preview {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.photo-upload-placeholder {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 1px dashed var(--color-border);
+  display: grid;
+  place-items: center;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  text-align: center;
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+.photo-upload-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.photo-upload-controls small {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+/* A styled label standing in for the file input -- <input type="file"> can't
+   be restyled directly, so it's visually hidden and the label wears the
+   look of the existing .btn-secondary instead. */
+.photo-upload-button {
+  position: relative;
+  cursor: pointer;
+}
+.photo-upload-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.photo-upload-undo {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.photo-upload-undo:hover {
+  color: var(--color-text);
+}
+
 /* auth (login / signup) */
 /* Narrow and centered rather than stretching .form to the page's full width
    like a person-record form does -- two or three fields don't need that

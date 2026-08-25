@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api } from '../api/client.js';
+import { api, getFileUrl } from '../api/client.js';
 import { lifespan, classifyRelationship, fullName } from '../utils.js';
 import ClipPlayer from '../components/ClipPlayer.jsx';
 import ClipUploadForm from '../components/ClipUploadForm.jsx';
@@ -132,7 +132,7 @@ export default function PersonDetail() {
 
       {person.photo_url && (
         <img
-          src={person.photo_url}
+          src={getFileUrl(person.photo_url)}
           alt={person.first_name}
           style={{
             width: 160, height: 160, objectFit: 'cover', borderRadius: '50%', margin: '0 auto 16px', display: 'block',
