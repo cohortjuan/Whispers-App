@@ -1,11 +1,10 @@
 import { Link } from 'react-router-dom';
 
 // The public front door -- what a signed-out visitor sees at "/" instead of
-// being dropped straight onto a bare login form. Reuses about-video.mp4
-// (already in the repo, already the right tone) as a hero background rather
-// than a new asset. SplashIntro still plays on top of this like every other
-// page load -- nothing here replaces that, it's a separate, simpler layer
-// underneath it.
+// being dropped straight onto a bare login form. landing-video.mp4 is its
+// own asset, separate from about-video.mp4 on the About page. SplashIntro
+// still plays on top of this like every other page load -- nothing here
+// replaces that, it's a separate, simpler layer underneath it.
 export default function Landing() {
   return (
     <div className="landing">
@@ -29,7 +28,7 @@ export default function Landing() {
       <header className="landing-hero">
         <video
           className="landing-video"
-          src="/about-video.mp4"
+          src="/landing-video.mp4"
           autoPlay
           loop
           muted
