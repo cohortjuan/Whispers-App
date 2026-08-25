@@ -1,11 +1,20 @@
 // tiny wrapper around fetch so the components don't have to deal with
 // json headers / error handling every single time
 
+// Relative in prod on purpose -- vercel.json rewrites /api/* and /uploads/*
+// to the Render backend, so the browser only ever talks to whispers-app's
+// own origin. That's not just tidiness: whispers_csrf must be readable via
+// document.cookie (that's the whole double-submit mechanism), and a cookie
+// set by a *different* registrable domain (onrender.com) is invisible to
+// JS running on this one no matter what SameSite/Secure say -- there's no
+// cookie attribute that fixes that, only same-origin does. Hitting the
+// Render URL directly from the browser was exactly that bug: sessions
+// worked (the browser still attaches the cookie to requests), but every
+// mutating request 403'd with "invalid or missing csrf token" because the
+// frontend could never read the token to echo back.
 const API_URL = (
   import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD
-    ? "https://whispers-app.onrender.com/api"
-    : "http://localhost:5000/api")
+  (import.meta.env.PROD ? "/api" : "http://localhost:5000/api")
 ).replace(/\/$/, "");
 
 // The session itself lives in an httpOnly cookie (whispers_session) the
