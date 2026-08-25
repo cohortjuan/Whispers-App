@@ -1192,6 +1192,207 @@ select.form-input:focus {
   margin-bottom: 0;
 }
 
+/* landing page -- the public front door at "/" for a signed-out visitor.
+   Breaks out of .app-main's centered/padded column the same way .about-video
+   does (position:relative + left/right:50% + negative margins), just for
+   the whole page instead of one element, since there's no persistent
+   NavBar/padding to work around here -- Landing supplies its own nav. */
+.landing {
+  position: relative;
+  width: 100vw;
+  left: 50%;
+  right: 50%;
+  margin: -24px -50vw -60px;
+}
+
+.landing-nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 28px;
+}
+.landing-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-style: italic;
+  font-weight: 600;
+  font-size: 1.4rem;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+.landing-nav-logo {
+  width: 30px;
+  height: 30px;
+  /* the light-mode svg reads fine on video regardless of theme -- this page
+     doesn't toggle with the app's dark/light state, it's the one constant
+     "outside" surface a visitor sees before any preference applies */
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.5));
+}
+.landing-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* Own scrim per button rather than relying on the video underneath -- the
+   footage's brightness shifts frame to frame, so a plain link would have no
+   reliable contrast against it. Same reasoning as .about-video sitting on
+   its own dark page background, just solved differently since this sits
+   directly on top of moving footage instead of beside it. */
+.landing-nav-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.landing-nav-btn:hover {
+  background: rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.65);
+}
+.landing-nav-btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.landing-nav-btn-primary:hover {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+}
+
+.landing-hero {
+  position: relative;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.landing-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* A pool of shade behind the copy rather than dimming the whole frame --
+   keeps the footage itself visible at the edges while guaranteeing the
+   words stay readable regardless of what's playing behind them. */
+.landing-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, rgba(23, 15, 34, 0.35) 0%, rgba(23, 15, 34, 0.72) 100%),
+    linear-gradient(to bottom, rgba(23, 15, 34, 0.5), rgba(23, 15, 34, 0.15) 35%, rgba(23, 15, 34, 0.78));
+  pointer-events: none;
+}
+.landing-hero-content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  max-width: 640px;
+  padding: 0 24px;
+}
+/* The big hero wordmark -- same lettering as .navbar-brand (Fraunces,
+   italic, 600 weight) just at a scale that stops the eye first, the way
+   Gather's own homepage leads with "GATHER" before anything else. Kept in
+   Whispers' own italic serif rather than borrowing Gather's bold sans, so
+   it reads as this app's mark, not a copy of another one's. */
+.landing-wordmark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+.landing-wordmark-logo {
+  width: clamp(56px, 9vw, 92px);
+  height: clamp(56px, 9vw, 92px);
+  filter: drop-shadow(0 3px 14px rgba(0, 0, 0, 0.45));
+}
+.landing-wordmark-text {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-style: italic;
+  font-weight: 600;
+  font-size: clamp(2.6rem, 8vw, 5.5rem);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: #fff;
+  text-shadow: 0 3px 16px rgba(0, 0, 0, 0.5);
+}
+
+.landing-hero-content h1 {
+  margin: 0 0 18px;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-style: italic;
+  font-size: clamp(2.2rem, 5.5vw, 3.4rem);
+  line-height: 1.15;
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+.landing-hero-content p {
+  margin: 0 auto 32px;
+  max-width: 52ch;
+  font-size: clamp(1rem, 1.6vw, 1.15rem);
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+.landing-hero-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.landing-hero-btn {
+  padding: 13px 30px;
+  font-size: 1rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+.landing-hero-link {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.92rem;
+  text-decoration: underline;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.landing-hero-link:hover {
+  color: #fff;
+}
+.landing-hero-reassurance {
+  margin: 14px 0 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.6);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 640px) {
+  .landing-nav {
+    padding: 16px 18px;
+  }
+  .landing-nav-brand {
+    font-size: 1.15rem;
+  }
+  .landing-nav-btn {
+    padding: 7px 12px;
+    font-size: 0.8rem;
+  }
+}
+
 /* full-bleed on purpose -- breaks out of .app-main's centered column to
    span the whole viewport width, not just the width of the text above it */
 .about-video {

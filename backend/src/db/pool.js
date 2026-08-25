@@ -1,9 +1,14 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
 const { Pool } = pg;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const SCHEMA_PATH = path.join(__dirname, '../../../database/schema.sql');
 
 if (!process.env.DATABASE_URL) {
   console.error('missing DATABASE_URL env var. copy backend/.env.example to backend/.env and fill it in');
@@ -41,6 +46,18 @@ export async function testConnection() {
   } finally {
     client.release();
   }
+}
+
+// schema.sql is CREATE TABLE IF NOT EXISTS / CREATE INDEX IF NOT EXISTS
+// throughout, so running it against an already-populated database is a
+// harmless no-op except for whatever tables/indexes are actually missing.
+// Hosted postgres (Neon, Render, ...) doesn't auto-run
+// docker-entrypoint-initdb.d the way local docker compose does, so without
+// this, a schema change only ever reaches production if someone remembers
+// to run schema.sql against it by hand after deploying.
+export async function ensureSchema() {
+  const sql = fs.readFileSync(SCHEMA_PATH, 'utf8');
+  await pool.query(sql);
 }
 
 // every route's "get/update/delete by id" handler ends the same way: run the

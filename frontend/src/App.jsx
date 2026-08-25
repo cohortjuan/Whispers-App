@@ -2,7 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import NavBar from './components/NavBar.jsx';
 import SplashIntro from './components/SplashIntro.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
-import Dashboard from './pages/Dashboard.jsx';
+import HomeGate from './components/HomeGate.jsx';
 import PersonForm from './pages/PersonForm.jsx';
 import PersonDetail from './pages/PersonDetail.jsx';
 import FamilyTree from './pages/FamilyTree.jsx';
@@ -26,7 +26,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
 
-          <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
+          <Route path="/" element={<HomeGate />} />
           <Route
             path="/people/new"
             element={

@@ -1,11 +1,13 @@
 import { app } from './app.js';
-import { testConnection } from './db/pool.js';
+import { testConnection, ensureSchema } from './db/pool.js';
 
 const PORT = process.env.PORT || 5000;
 
-// check we can actually reach postgres before starting the server,
-// way easier to debug than random failures on the first request
+// check we can actually reach postgres, then make sure it actually has every
+// table schema.sql expects, before starting the server -- way easier to
+// debug than random "relation does not exist" errors on the first request
 testConnection()
+  .then(() => ensureSchema())
   .then(() => {
     app.listen(PORT, () => {
       console.log(`whispers app api running on http://localhost:${PORT}`);
