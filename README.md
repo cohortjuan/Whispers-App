@@ -14,16 +14,20 @@ Built for a full-stack class project. React + Vite frontend, Node/Express backen
 PostgreSQL database, all talking over a REST API.
 
 **🔴 Live demo: [whispers-app.vercel.app](https://whispers-app.vercel.app)** — frontend on
-Vercel, backend on Render, database on Neon. Free-tier hosting, so the backend spins
-down after ~15 min idle (first load after a lull takes 30-60s to wake up), and uploaded
-clips don't survive a redeploy.
+Vercel, backend on Render (Starter compute, with a persistent disk mounted for uploads),
+database on Neon.
 
 ## ✨ Features
 
 - 🔐 **Real accounts, not a shared login.** Email/password signup with bcrypt password
   hashing, server-side sessions (opaque tokens, revocable by deleting a row — not
   self-verifying JWTs), CSRF protection on every mutating request, and account lockout
-  after 5 consecutive bad password attempts.
+  after 5 consecutive bad password attempts — enforced with an atomic query, so a burst
+  of concurrent guesses can't race past the threshold. CORS only ever allows this app's
+  own origin, and expired sessions get swept out on a timer instead of piling up forever.
+- 🏠 **A real front door, not a bare login form.** Signed-out visitors land on a video
+  hero with the pitch and a signup-first call to action; only signed-in visitors see the
+  dashboard at the same address.
 - 👪 **Every family's tree is private.** Signing up either starts a brand-new family or
   joins an existing one — from then on, every person, clip, and relationship you see
   (and every file under `/uploads`) is scoped to your family. Nobody in a different
@@ -41,7 +45,12 @@ clips don't survive a redeploy.
 - 🌳 **An actual connected family tree**, not just a list. The Family Tree page draws
   parents, spouses, and children as a real branching diagram, and each person's own
   profile shows their immediate family (parents/spouse/children) the same way —
-  connected boxes with lines, not bullet points.
+  connected boxes with lines, not bullet points. A "show photos" toggle switches each
+  person's badge between their real photo and initials, remembered per browser.
+- 🌰 **A crash page with somewhere to look, not a blank screen.** If something breaks,
+  you get the logo, an honest apology, and a tiny catch-the-acorns game to tap at while
+  it sorts itself out — the same little game is also hidden as an easter egg on the
+  About page, for anyone who happens to click the right acorn.
 - 🌙 **Dark mode** with its own "regal dark purple" palette (toggle in the navbar) —
   every color in the app is a CSS variable, so it's the same layout in either theme.
   The tree logo has a real second color variant for dark mode (not just an inverted
@@ -239,7 +248,8 @@ git push -u origin main
   a thumbnail row sitting right below their header/caption and above the "Capture
   Their Voice" recording section. Would need a `photos` table plus a `photo_tags`
   join table (photo_id, person_id) for the many-to-many tagging
-- Before deploying anywhere: `backend/uploads/` is local disk storage, which doesn't
-  survive a redeploy on most hosts (Render, Railway, etc. use an ephemeral
-  filesystem by default). Moving clip storage to S3/R2/Backblaze (or paying for a
-  persistent disk) is the one real change needed before this goes live anywhere.
+- `backend/uploads/` is local disk storage, which doesn't survive a redeploy on most
+  hosts (Render, Railway, etc. use an ephemeral filesystem by default) unless you attach
+  a persistent disk and point `UPLOAD_DIR_PATH` at its mount path (see `.env.example`) —
+  the live demo does this on Render's Disks feature. Moving to S3/R2/Backblaze instead
+  would drop the persistent-disk dependency entirely and is worth it at real scale.
