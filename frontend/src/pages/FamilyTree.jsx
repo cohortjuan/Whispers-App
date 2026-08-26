@@ -12,6 +12,21 @@ export default function FamilyTree() {
   const [relationships, setRelationships] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // on by default so the feature is actually visible without hunting for
+  // it; persisted per-browser so switching people/pages doesn't reset it
+  // every time, but this is a display preference only -- never sent
+  // anywhere, so there's nothing per-family or per-account to keep in sync
+  const [showPhotos, setShowPhotos] = useState(
+    () => localStorage.getItem('whispers-tree-show-photos') !== 'false',
+  );
+
+  function toggleShowPhotos() {
+    setShowPhotos((prev) => {
+      const next = !prev;
+      localStorage.setItem('whispers-tree-show-photos', String(next));
+      return next;
+    });
+  }
 
   useEffect(() => {
     Promise.all([api.people.list(), api.relationships.list()])
@@ -105,11 +120,15 @@ export default function FamilyTree() {
           click anyone's name to open their page and listen to their clips. use "add relationship" on a person's
           page to connect parents, children, and spouses.
         </p>
+        <label className="tree-photo-toggle">
+          <input type="checkbox" checked={showPhotos} onChange={toggleShowPhotos} />
+          show photos
+        </label>
       </div>
       <div className="tree">
         <div className="tree-roots">
           {treeRoots.map((node) => (
-            <TreeNode key={node.person.id} node={node} />
+            <TreeNode key={node.person.id} node={node} showPhotos={showPhotos} />
           ))}
         </div>
       </div>
