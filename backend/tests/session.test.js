@@ -37,14 +37,14 @@ describe('resolveCookieOptions', () => {
     expect(resolveCookieOptions()).toEqual({ secure: false, sameSite: 'lax' });
   });
 
-  it('switches to secure/none when NODE_ENV=production', () => {
+  it('switches to secure/lax when NODE_ENV=production', () => {
     process.env.NODE_ENV = 'production';
-    expect(resolveCookieOptions()).toEqual({ secure: true, sameSite: 'none' });
+    expect(resolveCookieOptions()).toEqual({ secure: true, sameSite: 'lax' });
   });
 
-  it('COOKIE_SECURE=true forces secure/none even outside production', () => {
+  it('COOKIE_SECURE=true forces secure/lax even outside production', () => {
     process.env.COOKIE_SECURE = 'true';
-    expect(resolveCookieOptions()).toEqual({ secure: true, sameSite: 'none' });
+    expect(resolveCookieOptions()).toEqual({ secure: true, sameSite: 'lax' });
   });
 
   it('COOKIE_SECURE=false forces non-secure/lax even in production', () => {

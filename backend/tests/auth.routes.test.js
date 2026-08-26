@@ -57,13 +57,18 @@ describe('POST /api/auth/login', () => {
         userRow.locked_until = null;
         return { rows: [] };
       }
-      if (sql.includes('locked_until = $2')) {
-        userRow.failed_login_attempts = 0;
-        userRow.locked_until = params[1];
-        return { rows: [] };
-      }
-      if (sql.includes('failed_login_attempts = $2')) {
-        userRow.failed_login_attempts = params[1];
+      // the atomic increment-and-maybe-lock UPDATE (see routes/auth.js) --
+      // params are [userId, LOCK_THRESHOLD, lockExpiryDate], mirroring the
+      // CASE expressions in the real SQL so this mock actually exercises
+      // the same logic instead of just recording whatever the app sends
+      if (sql.includes('failed_login_attempts = CASE')) {
+        const nextAttempts = userRow.failed_login_attempts + 1;
+        if (nextAttempts >= params[1]) {
+          userRow.failed_login_attempts = 0;
+          userRow.locked_until = params[2];
+        } else {
+          userRow.failed_login_attempts = nextAttempts;
+        }
         return { rows: [] };
       }
       if (sql.includes('INSERT INTO sessions')) {

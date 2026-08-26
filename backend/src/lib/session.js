@@ -33,21 +33,22 @@ export function hashToken(token) {
 // mirrors db/pool.js's resolveSsl(): explicit env override, else guess from
 // NODE_ENV, so existing setups keep working without extra config.
 //
-// why this needs to be conditional at all: local dev is the frontend and
-// backend both on localhost (different ports), which browsers treat as
-// same-site regardless of port -- SameSite=Lax works fine there, and
-// Secure can't be set at all since local dev is plain http.
-// production is vercel (frontend) <-> render (backend), two different
-// registrable domains -- genuinely cross-site. a cookie set with the
-// default SameSite=Lax/Strict simply will not be attached to those
-// cross-site fetch() calls at all, so auth would silently appear broken in
-// prod while working fine locally. SameSite=None; Secure is required for
-// the cookie to be sent cross-site, and Secure requires https (which both
-// vercel and render provide in production).
+// SameSite=Lax works in both environments now. Production frontend (Vercel)
+// and backend (Render) are on different registrable domains, but the
+// frontend never calls Render directly -- vercel.json rewrites /api/* and
+// /uploads/* through the frontend's own origin (see frontend/src/api/
+// client.js), so the browser only ever talks to whispers-app.vercel.app
+// and this cookie is same-site from its point of view either way. (An
+// earlier version of this comment described a genuinely cross-site setup
+// needing SameSite=None -- that was true before the same-origin proxy fix,
+// and is deliberately not the case anymore: None is broader than this app
+// needs, and a stricter SameSite is one less thing a hostile origin could
+// ever lean on.) Secure still needs its own flag: local dev is plain http
+// and can't set it at all, production is https and should always have it.
 export function resolveCookieOptions() {
-  const crossSiteProd =
+  const secureProd =
     process.env.COOKIE_SECURE === 'true' ||
     (process.env.COOKIE_SECURE !== 'false' && process.env.NODE_ENV === 'production');
 
-  return crossSiteProd ? { secure: true, sameSite: 'none' } : { secure: false, sameSite: 'lax' };
+  return secureProd ? { secure: true, sameSite: 'lax' } : { secure: false, sameSite: 'lax' };
 }

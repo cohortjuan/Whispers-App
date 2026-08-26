@@ -33,9 +33,16 @@ export const pool = new Pool({
   ssl: resolveSsl(),
 });
 
+// pg's own docs: this fires when an *idle* client the pool is holding onto
+// errors out -- most commonly the server (Neon, in production here) closing
+// a connection nobody was actively using, which is routine for hosted
+// Postgres, not a sign anything is actually broken. pg already discards
+// that client and opens a fresh one on the next checkout, so there's
+// nothing left to recover from by the time this fires. Taking the entire
+// process down over a normal, self-healing event was overkill -- it turned
+// an occasional idle-connection reset into a full outage for no reason.
 pool.on('error', (err) => {
-  console.error('unexpected error on idle postgres client', err);
-  process.exit(1);
+  console.error('idle postgres client error (pool recovers automatically):', err.message);
 });
 
 // quick check on startup so we fail fast if the db is unreachable
@@ -58,6 +65,17 @@ export async function testConnection() {
 export async function ensureSchema() {
   const sql = fs.readFileSync(SCHEMA_PATH, 'utf8');
   await pool.query(sql);
+}
+
+// requireAuth only ever filters expired sessions out at read time -- it
+// never deletes them, and logout only removes the one session row for
+// whoever explicitly signs out. Anyone who lets a session expire instead
+// (by far the common case) leaves their row behind forever, so the table
+// grows without bound. Called on an interval from server.js rather than
+// on every request, since this doesn't need to be instant -- expired rows
+// already can't authenticate anything even before they're swept up.
+export async function cleanupExpiredSessions() {
+  await pool.query('DELETE FROM sessions WHERE expires_at < now()');
 }
 
 // every route's "get/update/delete by id" handler ends the same way: run the

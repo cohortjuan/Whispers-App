@@ -87,8 +87,11 @@ function normalizeInviteCode(code) {
   return typeof code === 'string' ? code.trim().toUpperCase().replace(/\s+/g, '') : '';
 }
 
-async function createFamily(name) {
-  const result = await pool.query('INSERT INTO families (name) VALUES ($1) RETURNING id', [name]);
+// accepts an explicit client so signup can run this inside the same
+// transaction as claiming an invite and creating the account -- see there
+// for why that matters
+async function createFamily(name, executor = pool) {
+  const result = await executor.query('INSERT INTO families (name) VALUES ($1) RETURNING id', [name]);
   return result.rows[0].id;
 }
 
@@ -112,8 +115,21 @@ async function findRedeemableInvite(code, email) {
   return { invite };
 }
 
-async function redeemInvite(inviteId, userId) {
-  await pool.query('UPDATE invites SET used_at = now(), used_by = $2 WHERE id = $1', [inviteId, userId]);
+// Atomically claims the invite -- conditioning the UPDATE on used_at IS
+// NULL, not just trusting findRedeemableInvite's earlier SELECT, is what
+// actually makes this single-use under concurrency. That SELECT and this
+// UPDATE used to be two separate round trips with a real window between
+// them: two requests redeeming the same code at close enough to the same
+// time could both see "not yet used" and both go on to succeed, letting a
+// single-use code add two people instead of one. Returns whether this call
+// actually won the claim -- false means someone else's request got there
+// first, and the caller should treat that exactly like an already-used code.
+async function redeemInvite(inviteId, userId, executor = pool) {
+  const result = await executor.query(
+    'UPDATE invites SET used_at = now(), used_by = $2 WHERE id = $1 AND used_at IS NULL RETURNING id',
+    [inviteId, userId]
+  );
+  return result.rows.length > 0;
 }
 
 function setAuthCookies(res, { token, csrfToken }) {
@@ -201,22 +217,52 @@ authRouter.post('/signup', signupLimiter, async (req, res, next) => {
     }
 
     const passwordHash = await hashPassword(password);
-    const familyId = invite ? invite.family_id : await createFamily(familyName);
 
-    const result = await pool.query(
-      `INSERT INTO users (email, password_hash, display_name, family_id)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, email, display_name, created_at`,
-      [email, passwordHash, display_name.trim(), familyId]
-    );
+    // Everything from here on runs in one transaction: claiming the invite,
+    // creating the account, and (for a new family) creating the family
+    // itself all succeed together or all roll back together. That's what
+    // still lets a duplicate-email failure leave the invite code good for
+    // someone else to use (the original goal), while also making sure a
+    // successful claim always has a real account behind it -- the two
+    // outcomes used to be handled with separate, non-transactional queries,
+    // which is exactly the gap the redeemInvite race lived in.
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    // only burn the invite once the account it's tied to actually exists --
-    // if the insert above fails (duplicate email), the code is still good
-    if (invite) {
-      await redeemInvite(invite.id, result.rows[0].id);
+      let familyId;
+      if (invite) {
+        const claimed = await redeemInvite(invite.id, null, client);
+        if (!claimed) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'that invite code has already been used' });
+        }
+        familyId = invite.family_id;
+      } else {
+        familyId = await createFamily(familyName, client);
+      }
+
+      const result = await client.query(
+        `INSERT INTO users (email, password_hash, display_name, family_id)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, email, display_name, created_at`,
+        [email, passwordHash, display_name.trim(), familyId]
+      );
+
+      // used_by couldn't be set until the account existed to reference --
+      // fill it in now that it does, still inside the same transaction
+      if (invite) {
+        await client.query('UPDATE invites SET used_by = $2 WHERE id = $1', [invite.id, result.rows[0].id]);
+      }
+
+      await client.query('COMMIT');
+      res.status(201).json(result.rows[0]);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-
-    res.status(201).json(result.rows[0]);
   } catch (err) {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'an account with that email already exists' });
@@ -256,18 +302,23 @@ authRouter.post('/login', loginLimiter, async (req, res, next) => {
       // rate limiter above, so it catches slow/distributed attempts
       // against one target account
       if (user && !isLocked && !passwordMatches) {
-        const attempts = user.failed_login_attempts + 1;
-        if (attempts >= LOCK_THRESHOLD) {
-          await pool.query(
-            `UPDATE users SET failed_login_attempts = 0, locked_until = $2, updated_at = now() WHERE id = $1`,
-            [user.id, new Date(Date.now() + LOCK_DURATION_MS)]
-          );
-        } else {
-          await pool.query(
-            `UPDATE users SET failed_login_attempts = $2, updated_at = now() WHERE id = $1`,
-            [user.id, attempts]
-          );
-        }
+        // Incrementing and (conditionally) locking in one atomic UPDATE,
+        // rather than reading failed_login_attempts, computing +1 in JS,
+        // then writing it back -- that read-then-write let concurrent
+        // failed attempts against the same account race each other: every
+        // request reads the same stale count, so N simultaneous guesses
+        // only ever move the counter to 1, never to N, and the lockout
+        // threshold is never reached no matter how many attempts land at
+        // once. A single UPDATE is one indivisible read-and-write against
+        // that row, so concurrent attempts serialize correctly instead.
+        await pool.query(
+          `UPDATE users
+           SET failed_login_attempts = CASE WHEN failed_login_attempts + 1 >= $2 THEN 0 ELSE failed_login_attempts + 1 END,
+               locked_until = CASE WHEN failed_login_attempts + 1 >= $2 THEN $3 ELSE locked_until END,
+               updated_at = now()
+           WHERE id = $1`,
+          [user.id, LOCK_THRESHOLD, new Date(Date.now() + LOCK_DURATION_MS)]
+        );
       }
       return reject();
     }
@@ -316,11 +367,18 @@ authRouter.post('/join-family', requireAuth, csrfProtection, joinFamilyLimiter, 
       return res.status(400).json({ error: "you're already in that family" });
     }
 
+    // claim before switching -- if someone else's request claims this code
+    // first, bail out here rather than moving the user's family and only
+    // then discovering the code was already spent
+    const claimed = await redeemInvite(invite.id, req.user.id);
+    if (!claimed) {
+      return res.status(400).json({ error: 'that invite code has already been used' });
+    }
+
     await pool.query('UPDATE users SET family_id = $2, updated_at = now() WHERE id = $1', [
       req.user.id,
       invite.family_id,
     ]);
-    await redeemInvite(invite.id, req.user.id);
 
     const familyResult = await pool.query('SELECT id, name FROM families WHERE id = $1', [invite.family_id]);
 
