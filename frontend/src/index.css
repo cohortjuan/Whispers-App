@@ -1637,3 +1637,10 @@ select.form-input:focus {
   font-size: 0.8rem;
   color: var(--color-text-muted);
 }
+.app-footer a {
+  color: inherit;
+  text-decoration: underline;
+}
+.app-footer a:hover {
+  color: var(--color-primary);
+}

@@ -55,7 +55,12 @@ export default function App() {
           <Route path="/about" element={<RequireAuth><About /></RequireAuth>} />
         </Routes>
       </main>
-      <footer className="app-footer">&copy; {new Date().getFullYear()} Dajuan Hume</footer>
+      <footer className="app-footer">
+        &copy; {new Date().getFullYear()}{' '}
+        <a href="https://github.com/cohortjuan" target="_blank" rel="noopener noreferrer">
+          github.com/cohortjuan
+        </a>
+      </footer>
     </div>
   );
 }
