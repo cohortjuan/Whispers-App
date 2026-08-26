@@ -1630,3 +1630,10 @@ select.form-input:focus {
   max-width: 380px;
   text-align: center;
 }
+
+.app-footer {
+  text-align: center;
+  padding: 18px 20px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}

@@ -55,6 +55,7 @@ export default function App() {
           <Route path="/about" element={<RequireAuth><About /></RequireAuth>} />
         </Routes>
       </main>
+      <footer className="app-footer">&copy; {new Date().getFullYear()} Dajuan Hume</footer>
     </div>
   );
 }
