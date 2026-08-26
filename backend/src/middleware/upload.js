@@ -5,7 +5,11 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
+// UPLOAD_DIR_PATH lets production point this at a mounted persistent disk
+// (e.g. Render's disks feature) instead of the backend's own source
+// checkout, which gets wiped on every redeploy since it's ephemeral there.
+// Local dev has no such disk, so it just falls back to backend/uploads.
+export const UPLOAD_DIR = process.env.UPLOAD_DIR_PATH || path.join(__dirname, '..', '..', 'uploads');
 
 // make sure the uploads folder actually exists before multer tries to write to it
 if (!fs.existsSync(UPLOAD_DIR)) {
