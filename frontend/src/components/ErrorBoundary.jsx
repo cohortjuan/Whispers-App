@@ -1,10 +1,12 @@
 import { Component } from 'react';
+import CrashGame from './CrashGame.jsx';
 
 // A render error anywhere below this (a bad API response shaped differently
 // than a component expects, etc.) used to blank the entire page with
 // nothing in the UI to explain why -- only the browser console showed
-// anything. This at least gives the person a way back in instead of a
-// dead white screen.
+// anything. This gives the person a real page instead: the logo, an honest
+// "this is on us" instead of corporate error-speak, and a tiny distraction
+// to tap at while they decide whether to reload.
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -22,12 +24,14 @@ export default class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="error-boundary">
-          <h1>something went wrong</h1>
+        <div className="crash-page">
+          <img src="/tree-logo.svg" alt="Whispers App" className="crash-logo" />
+          <h1>whoops, that's on us</h1>
           <p>
-            this page hit an unexpected error. reloading usually fixes it --
-            if it keeps happening, signing out and back in might help.
+            something broke back there -- not your fault, and your data's
+            fine. reload usually sorts it out. in the meantime...
           </p>
+          <CrashGame />
           <button className="btn" type="button" onClick={() => window.location.assign('/')}>
             reload
           </button>

@@ -1470,3 +1470,97 @@ select.form-input:focus {
   max-height: 70vh;
   object-fit: cover;
 }
+
+/* ---------------------------------------------------------------------
+   crash page: what ErrorBoundary shows instead of a blank white screen.
+   deliberately informal -- this is the one moment the app is admitting
+   it broke, so it should feel human, not like a corporate error dialog.
+   --------------------------------------------------------------------- */
+.crash-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+  gap: 6px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.crash-logo {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 8px;
+  animation: crash-logo-sway 3.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .crash-logo {
+    animation: none;
+  }
+}
+@keyframes crash-logo-sway {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+.crash-page h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-style: italic;
+  font-weight: 600;
+  font-size: 1.8rem;
+}
+.crash-page p {
+  margin: 0 0 8px;
+  max-width: 46ch;
+  color: var(--color-text-muted);
+}
+.crash-page .btn {
+  margin-top: 8px;
+}
+
+.crash-game {
+  width: 100%;
+  max-width: 380px;
+}
+.crash-game-field {
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.crash-acorn {
+  position: absolute;
+  top: -36px;
+  transform: translateX(-50%);
+  background: none;
+  border: none;
+  padding: 4px;
+  font-size: 1.7rem;
+  line-height: 1;
+  cursor: pointer;
+  animation-name: crash-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+.crash-acorn:hover {
+  transform: translateX(-50%) scale(1.15);
+}
+@keyframes crash-fall {
+  from { top: -36px; }
+  to { top: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crash-acorn {
+    animation-duration: 8s !important;
+  }
+}
+.crash-game-score {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
