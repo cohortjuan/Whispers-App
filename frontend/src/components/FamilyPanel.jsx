@@ -69,6 +69,12 @@ export default function FamilyPanel({ onFamilyChanged }) {
     }
   }
 
+  // A logged-in user should always have a family (the backend attaches one
+  // on every login/me response), but rendering nothing instead of throwing
+  // if that's ever not true keeps a single bad account from blanking the
+  // entire dashboard for that user.
+  if (!user.family) return null;
+
   return (
     <div className="family-panel">
       <div className="family-panel-header">

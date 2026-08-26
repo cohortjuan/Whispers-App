@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS families (
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS people (
   id           SERIAL PRIMARY KEY,
-  family_id    INTEGER REFERENCES families(id) ON DELETE CASCADE,
   first_name   VARCHAR(100) NOT NULL,
   last_name    VARCHAR(100) NOT NULL,
   nickname     VARCHAR(100),
@@ -81,7 +80,6 @@ CREATE INDEX IF NOT EXISTS idx_clips_person_id ON clips(person_id);
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
   id                     SERIAL PRIMARY KEY,
-  family_id              INTEGER REFERENCES families(id) ON DELETE CASCADE,
   -- always stored lowercased and compared lowercased in queries (see
   -- backend/src/routes/auth.js normalizeEmail()) instead of relying on
   -- the citext extension -- this schema doesn't use any extensions
@@ -150,6 +148,20 @@ CREATE TABLE IF NOT EXISTS invites (
 );
 
 CREATE INDEX IF NOT EXISTS idx_invites_family_id ON invites(family_id);
+
+-- ---------------------------------------------------------------------
+-- family_id: added via ALTER rather than in the CREATE TABLE statements
+-- above on purpose. people/users already existed in production before
+-- the families table did, and CREATE TABLE IF NOT EXISTS is a complete
+-- no-op against a table that already exists -- it does NOT add columns
+-- to it, so family_id would silently never be created there, and the
+-- backfill below would fail with "column family_id does not exist" (this
+-- exact mistake shipped once already). ADD COLUMN IF NOT EXISTS is the
+-- one form that's correct for both a brand-new table and a pre-existing
+-- one.
+-- ---------------------------------------------------------------------
+ALTER TABLE people ADD COLUMN IF NOT EXISTS family_id INTEGER REFERENCES families(id) ON DELETE CASCADE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS family_id INTEGER REFERENCES families(id) ON DELETE CASCADE;
 
 -- ---------------------------------------------------------------------
 -- family_id backfill: people/users predate the families table above. A
