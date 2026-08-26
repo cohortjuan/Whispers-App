@@ -151,7 +151,6 @@ export default function SignupPage() {
               placeholder="e.g. The Reyes Family"
               value={form.family_name}
               onChange={(e) => update('family_name', e.target.value)}
-              required
             />
           </div>
         ) : (
@@ -162,7 +161,6 @@ export default function SignupPage() {
               placeholder="the code a family member sent you"
               value={form.invite_code}
               onChange={(e) => update('invite_code', e.target.value)}
-              required
             />
             <small>Each code only works once and expires after 7 days.</small>
           </div>
