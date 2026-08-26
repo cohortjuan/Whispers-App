@@ -10,6 +10,7 @@ import { clipsRouter } from "./routes/clips.js";
 import { authRouter } from "./routes/auth.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import { requireAuth } from "./middleware/requireAuth.js";
+import { requireFileAccess } from "./middleware/requireFileAccess.js";
 import { csrfProtection } from "./middleware/csrf.js";
 import { UPLOAD_DIR } from "./middleware/upload.js";
 
@@ -48,12 +49,13 @@ app.use(cookieParser());
 
 // serves the actual audio/video files, express.static handles range requests
 // on its own so scrubbing through an audio clip in the browser just works.
-// requireAuth in front of it closes the gap a login-only /api would otherwise
-// leave open: without this, anyone with (or guessing) a clip's file path
-// could stream it directly, session or no session -- the family's recordings
-// are the actual private content here, more so than the API responses about
-// them.
-app.use("/uploads", requireAuth, express.static(UPLOAD_DIR));
+// requireAuth closes the "logged in at all" gap a bare /api login wouldn't
+// otherwise cover here; requireFileAccess closes the next one -- being
+// logged in only proves who you are, not that this particular file belongs
+// to your family, so it checks that before express.static ever serves the
+// bytes. Same two-layer scoping as every /api/people, /api/clips, and
+// /api/relationships route.
+app.use("/uploads", requireAuth, requireFileAccess, express.static(UPLOAD_DIR));
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });

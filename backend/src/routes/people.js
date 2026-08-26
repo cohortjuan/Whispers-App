@@ -73,7 +73,7 @@ function verifyRealImage(req, res) {
   return true;
 }
 
-// GET /api/people - everybody, sorted by last name
+// GET /api/people - everybody in the caller's own family, sorted by last name
 peopleRouter.get('/', async (req, res, next) => {
   try {
     const result = await pool.query(
@@ -81,8 +81,10 @@ peopleRouter.get('/', async (req, res, next) => {
               COUNT(c.id)::int AS clip_count
        FROM people p
        LEFT JOIN clips c ON c.person_id = p.id
+       WHERE p.family_id = $1
        GROUP BY p.id
-       ORDER BY p.last_name, p.first_name`
+       ORDER BY p.last_name, p.first_name`,
+      [req.user.family.id]
     );
     res.json(result.rows);
   } catch (err) {
@@ -90,7 +92,10 @@ peopleRouter.get('/', async (req, res, next) => {
   }
 });
 
-// GET /api/people/:id - one person, with how many clips they have
+// GET /api/people/:id - one person, with how many clips they have. Scoped to
+// the caller's own family_id, not just the id -- otherwise anyone logged in
+// to any family could read another family's person by guessing/incrementing
+// an id, same 404 either way so it doesn't even reveal that the id exists.
 peopleRouter.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -100,9 +105,9 @@ peopleRouter.get('/:id', async (req, res, next) => {
               COUNT(c.id)::int AS clip_count
        FROM people p
        LEFT JOIN clips c ON c.person_id = p.id
-       WHERE p.id = $1
+       WHERE p.id = $1 AND p.family_id = $2
        GROUP BY p.id`,
-      [id],
+      [id, req.user.family.id],
       `person ${id} not found`
     );
     if (!person) return;
@@ -124,7 +129,9 @@ peopleRouter.post('/', photoUpload.single('photo'), async (req, res, next) => {
       return res.status(400).json({ error: errors.join(', ') });
     }
 
-    const countResult = await pool.query('SELECT COUNT(*)::int AS count FROM people');
+    const countResult = await pool.query('SELECT COUNT(*)::int AS count FROM people WHERE family_id = $1', [
+      req.user.family.id,
+    ]);
     if (countResult.rows[0].count >= MAX_PEOPLE) {
       if (req.file) fs.unlink(req.file.path, () => {});
       return res.status(403).json({
@@ -139,10 +146,11 @@ peopleRouter.post('/', photoUpload.single('photo'), async (req, res, next) => {
     const finalPhotoUrl = req.file ? req.file.filename : photo_url || null;
 
     const result = await pool.query(
-      `INSERT INTO people (first_name, last_name, nickname, birth_date, death_date, bio, photo_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO people (family_id, first_name, last_name, nickname, birth_date, death_date, bio, photo_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
+        req.user.family.id,
         first_name.trim(),
         last_name.trim(),
         nickname || null,
@@ -196,14 +204,14 @@ peopleRouter.put('/:id', photoUpload.single('photo'), async (req, res, next) => 
     // Grab the old photo before overwriting it, so a replaced file doesn't
     // just orphan the previous one on disk forever.
     const previous = req.file
-      ? await pool.query('SELECT photo_url FROM people WHERE id = $1', [id])
+      ? await pool.query('SELECT photo_url FROM people WHERE id = $1 AND family_id = $2', [id, req.user.family.id])
       : null;
 
-    params.push(id);
+    params.push(id, req.user.family.id);
 
     const person = await queryOrNotFound(
       res,
-      `UPDATE people SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      `UPDATE people SET ${sets.join(', ')} WHERE id = $${params.length - 1} AND family_id = $${params.length} RETURNING *`,
       params,
       `person ${id} not found`
     );
@@ -233,8 +241,8 @@ peopleRouter.delete('/:id', async (req, res, next) => {
 
     const deleted = await queryOrNotFound(
       res,
-      'DELETE FROM people WHERE id = $1 RETURNING id, photo_url',
-      [id],
+      'DELETE FROM people WHERE id = $1 AND family_id = $2 RETURNING id, photo_url',
+      [id, req.user.family.id],
       `person ${id} not found`
     );
     if (!deleted) return;

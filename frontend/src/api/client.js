@@ -89,6 +89,14 @@ export const api = {
     login: (body) =>
       request("/auth/login", { method: "POST", body: JSON.stringify(body) }),
     logout: () => request("/auth/logout", { method: "POST" }),
+    // body: { invite_code } -- moves the logged-in account into whichever
+    // family issued that code
+    joinFamily: (body) =>
+      request("/auth/join-family", { method: "POST", body: JSON.stringify(body) }),
+    // body: { email? } -- generates a fresh one-time code for the caller's
+    // own family; omitting email makes it redeemable by whoever gets it first
+    createInvite: (body) =>
+      request("/auth/invites", { method: "POST", body: JSON.stringify(body) }),
   },
   people: {
     list: () => request("/people"),

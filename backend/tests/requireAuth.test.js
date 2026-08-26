@@ -58,6 +58,8 @@ describe('requireAuth', () => {
           user_id: 42,
           email: 'nana@example.com',
           display_name: 'Nana',
+          family_id: 7,
+          family_name: 'Reyes Family',
         },
       ],
     });
@@ -71,7 +73,7 @@ describe('requireAuth', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('attaches req.user and req.session and calls next() for a valid, unexpired session', async () => {
+  it('attaches req.user (including family) and req.session and calls next() for a valid, unexpired session', async () => {
     pool.query.mockResolvedValue({
       rows: [
         {
@@ -81,6 +83,8 @@ describe('requireAuth', () => {
           user_id: 42,
           email: 'nana@example.com',
           display_name: 'Nana',
+          family_id: 7,
+          family_name: 'Reyes Family',
         },
       ],
     });
@@ -93,7 +97,12 @@ describe('requireAuth', () => {
 
     // looked up by the hash of the raw token, never the raw token itself
     expect(pool.query.mock.calls[0][1]).toEqual([hashToken(rawToken)]);
-    expect(req.user).toEqual({ id: 42, email: 'nana@example.com', display_name: 'Nana' });
+    expect(req.user).toEqual({
+      id: 42,
+      email: 'nana@example.com',
+      display_name: 'Nana',
+      family: { id: 7, name: 'Reyes Family' },
+    });
     expect(req.session).toEqual({ id: 7, csrfToken: 'csrf-abc' });
     expect(next).toHaveBeenCalledOnce();
     expect(res.status).not.toHaveBeenCalled();

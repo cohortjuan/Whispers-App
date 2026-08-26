@@ -5,12 +5,17 @@ export const relationshipsRouter = Router();
 
 const VALID_TYPES = new Set(['parent', 'spouse']);
 
-// GET /api/relationships
+// GET /api/relationships - only relationships between people in the caller's own family
 // GET /api/relationships?person_id=5 - anything touching person 5, either side of the link
 relationshipsRouter.get('/', async (req, res, next) => {
   try {
     const { person_id } = req.query;
 
+    // both sides are filtered on family_id, not just one -- relationships
+    // only ever exist between two people already confirmed to share a
+    // family (see the POST handler below), so this is belt-and-suspenders,
+    // but it's what actually keeps a cross-family row from ever surfacing
+    // if that invariant were ever violated
     const baseQuery = `
       SELECT r.*,
              p1.first_name AS person_first_name, p1.last_name AS person_last_name,
@@ -18,17 +23,18 @@ relationshipsRouter.get('/', async (req, res, next) => {
       FROM relationships r
       JOIN people p1 ON p1.id = r.person_id
       JOIN people p2 ON p2.id = r.related_person_id
+      WHERE p1.family_id = $1 AND p2.family_id = $1
     `;
 
     if (person_id) {
       const result = await pool.query(
-        `${baseQuery} WHERE r.person_id = $1 OR r.related_person_id = $1 ORDER BY r.id`,
-        [person_id]
+        `${baseQuery} AND (r.person_id = $2 OR r.related_person_id = $2) ORDER BY r.id`,
+        [req.user.family.id, person_id]
       );
       return res.json(result.rows);
     }
 
-    const result = await pool.query(`${baseQuery} ORDER BY r.id`);
+    const result = await pool.query(`${baseQuery} ORDER BY r.id`, [req.user.family.id]);
     res.json(result.rows);
   } catch (err) {
     next(err);
@@ -55,7 +61,15 @@ relationshipsRouter.post('/', async (req, res, next) => {
     // neither check depends on the other's result, so run them together
     // instead of waiting on one full round trip before starting the next
     const [peopleCheck, reverseCheck] = await Promise.all([
-      pool.query('SELECT id FROM people WHERE id IN ($1, $2)', [person_id, related_person_id]),
+      // family_id filter here is what stops someone from linking a person in
+      // their own family to a person_id belonging to a different family --
+      // requiring both ids to come back scoped to family_id is what makes
+      // the "2 rows" check below actually mean "2 rows, both mine"
+      pool.query('SELECT id FROM people WHERE id IN ($1, $2) AND family_id = $3', [
+        person_id,
+        related_person_id,
+        req.user.family.id,
+      ]),
       // the unique constraint only catches an exact-order duplicate -- also check
       // the reverse tuple, since "A married to B" and "B married to A" (or "A
       // parent of B" + "B parent of A") are the same/contradictory relationship
@@ -95,7 +109,15 @@ relationshipsRouter.post('/', async (req, res, next) => {
 relationshipsRouter.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const deleted = await queryOrNotFound(res, 'DELETE FROM relationships WHERE id = $1 RETURNING id', [id], `relationship ${id} not found`);
+    const deleted = await queryOrNotFound(
+      res,
+      `DELETE FROM relationships
+       WHERE id = $1
+         AND person_id IN (SELECT id FROM people WHERE family_id = $2)
+       RETURNING id`,
+      [id, req.user.family.id],
+      `relationship ${id} not found`
+    );
     if (!deleted) return;
     res.status(204).send();
   } catch (err) {

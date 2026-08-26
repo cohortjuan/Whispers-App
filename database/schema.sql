@@ -5,10 +5,25 @@
 BEGIN;
 
 -- ---------------------------------------------------------------------
+-- families: the actual sharing boundary. every `people` row and every
+-- login (`users` row) belongs to exactly one family -- that's what scopes
+-- who can see what (see backend/src/middleware/requireAuth.js and the
+-- family_id filters throughout backend/src/routes/*.js). people join a
+-- family either by creating one at signup or by redeeming an `invites`
+-- code from an existing member (below).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS families (
+  id           SERIAL PRIMARY KEY,
+  name         VARCHAR(200) NOT NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------------
 -- people: any family member who can have clips and relationships
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS people (
   id           SERIAL PRIMARY KEY,
+  family_id    INTEGER REFERENCES families(id) ON DELETE CASCADE,
   first_name   VARCHAR(100) NOT NULL,
   last_name    VARCHAR(100) NOT NULL,
   nickname     VARCHAR(100),
@@ -60,12 +75,13 @@ CREATE INDEX IF NOT EXISTS idx_clips_person_id ON clips(person_id);
 
 -- ---------------------------------------------------------------------
 -- users: login accounts. deliberately NOT the same thing as a `people`
--- row -- everyone who logs in shares the same family tree data (no
--- owner_id/family_id anywhere, no per-user data ownership), so a login
--- only answers "is someone authenticated", not "which person are they"
+-- row -- a login answers "is someone authenticated, and which family are
+-- they in", not "which person are they". family_id is what scopes every
+-- people/clips/relationships query to just this user's family.
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
   id                     SERIAL PRIMARY KEY,
+  family_id              INTEGER REFERENCES families(id) ON DELETE CASCADE,
   -- always stored lowercased and compared lowercased in queries (see
   -- backend/src/routes/auth.js normalizeEmail()) instead of relying on
   -- the citext extension -- this schema doesn't use any extensions
@@ -109,5 +125,57 @@ CREATE TABLE IF NOT EXISTS sessions (
 -- token_hash lookups are covered by the UNIQUE constraint's own index above;
 -- user_id isn't unique, so it needs its own index for session-cleanup queries
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+
+-- ---------------------------------------------------------------------
+-- invites: how someone joins an existing family instead of starting a new
+-- one. Deliberately not a permanent per-family code -- a single reusable
+-- code is a standing secret that leaks forever once shared once. Each row
+-- here is single-use (used_at gets set the moment it's redeemed, checked
+-- in backend/src/routes/auth.js before letting a second redemption
+-- through) and expires on its own. email is optional: set, it locks the
+-- code to that one address (checked case-insensitively against the
+-- normalized email doing the redeeming); NULL, it's redeemable by
+-- whoever has the code first, still exactly once.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS invites (
+  id           SERIAL PRIMARY KEY,
+  family_id    INTEGER NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+  code         VARCHAR(20) NOT NULL UNIQUE,
+  email        VARCHAR(255),
+  created_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  expires_at   TIMESTAMPTZ NOT NULL,
+  used_at      TIMESTAMPTZ,
+  used_by      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_invites_family_id ON invites(family_id);
+
+-- ---------------------------------------------------------------------
+-- family_id backfill: people/users predate the families table above. A
+-- brand-new database has zero rows in either, so this block is a no-op
+-- there. Against a database that already has data (an existing local
+-- checkout, or a hosted db this got deployed to before), it groups
+-- whatever's already there into one catch-all family instead of leaving
+-- those rows with a NULL family_id, which the NOT NULL constraints below
+-- would otherwise reject outright.
+-- ---------------------------------------------------------------------
+DO $$
+DECLARE
+  legacy_family_id INTEGER;
+BEGIN
+  IF EXISTS (SELECT 1 FROM people WHERE family_id IS NULL)
+     OR EXISTS (SELECT 1 FROM users WHERE family_id IS NULL) THEN
+    INSERT INTO families (name) VALUES ('My Family') RETURNING id INTO legacy_family_id;
+    UPDATE people SET family_id = legacy_family_id WHERE family_id IS NULL;
+    UPDATE users SET family_id = legacy_family_id WHERE family_id IS NULL;
+  END IF;
+END $$;
+
+ALTER TABLE people ALTER COLUMN family_id SET NOT NULL;
+ALTER TABLE users ALTER COLUMN family_id SET NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_people_family_id ON people(family_id);
+CREATE INDEX IF NOT EXISTS idx_users_family_id ON users(family_id);
 
 COMMIT;

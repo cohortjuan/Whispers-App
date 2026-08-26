@@ -33,6 +33,16 @@ export function AuthProvider({ children }) {
     return login({ email: payload.email, password: payload.password });
   }
 
+  // redeems an invite code for the already-logged-in user, moving them into
+  // whichever family issued it -- updates the shared user (so every
+  // component reading useAuth().user.family sees the switch immediately,
+  // no page reload needed)
+  async function joinFamily(inviteCode) {
+    const updatedUser = await api.auth.joinFamily({ invite_code: inviteCode });
+    setUser(updatedUser);
+    return updatedUser;
+  }
+
   async function logout() {
     // The session is destroyed server-side either way -- if the network
     // call fails, clearing local state still gets the user signed out of
@@ -45,7 +55,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, joinFamily }}>
       {children}
     </AuthContext.Provider>
   );

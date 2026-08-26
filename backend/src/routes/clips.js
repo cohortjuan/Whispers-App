@@ -6,7 +6,7 @@ import { upload, UPLOAD_DIR } from '../middleware/upload.js';
 
 export const clipsRouter = Router();
 
-// GET /api/clips
+// GET /api/clips - only clips belonging to people in the caller's own family
 // GET /api/clips?person_id=5
 clipsRouter.get('/', async (req, res, next) => {
   try {
@@ -16,21 +16,26 @@ clipsRouter.get('/', async (req, res, next) => {
       SELECT c.*, p.first_name, p.last_name
       FROM clips c
       JOIN people p ON p.id = c.person_id
+      WHERE p.family_id = $1
     `;
 
     if (person_id) {
-      const result = await pool.query(`${baseQuery} WHERE c.person_id = $1 ORDER BY c.created_at DESC`, [person_id]);
+      const result = await pool.query(`${baseQuery} AND c.person_id = $2 ORDER BY c.created_at DESC`, [
+        req.user.family.id,
+        person_id,
+      ]);
       return res.json(result.rows);
     }
 
-    const result = await pool.query(`${baseQuery} ORDER BY c.created_at DESC`);
+    const result = await pool.query(`${baseQuery} ORDER BY c.created_at DESC`, [req.user.family.id]);
     res.json(result.rows);
   } catch (err) {
     next(err);
   }
 });
 
-// GET /api/clips/:id
+// GET /api/clips/:id - scoped to the caller's own family, same 404 whether
+// the clip doesn't exist or just belongs to a different family
 clipsRouter.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -39,8 +44,8 @@ clipsRouter.get('/:id', async (req, res, next) => {
       `SELECT c.*, p.first_name, p.last_name
        FROM clips c
        JOIN people p ON p.id = c.person_id
-       WHERE c.id = $1`,
-      [id],
+       WHERE c.id = $1 AND p.family_id = $2`,
+      [id, req.user.family.id],
       `clip ${id} not found`
     );
     if (!clip) return;
@@ -68,7 +73,10 @@ clipsRouter.post('/', upload.single('file'), async (req, res, next) => {
       return res.status(400).json({ error: "media_type must be 'audio' or 'video'" });
     }
 
-    const personCheck = await pool.query('SELECT id FROM people WHERE id = $1', [person_id]);
+    const personCheck = await pool.query('SELECT id FROM people WHERE id = $1 AND family_id = $2', [
+      person_id,
+      req.user.family.id,
+    ]);
     if (personCheck.rows.length === 0) {
       fs.unlink(req.file.path, () => {});
       return res.status(404).json({ error: `person ${person_id} not found` });
@@ -126,11 +134,18 @@ clipsRouter.put('/:id', async (req, res, next) => {
     if (sets.length === 0) {
       return res.status(400).json({ error: 'nothing to update' });
     }
-    params.push(id);
+    params.push(id, req.user.family.id);
 
+    // subquery instead of a family_id column on clips itself -- a clip's
+    // family is always whichever family its person belongs to, so scoping
+    // through that join is the same check people.js and the GET routes
+    // above already use
     const clip = await queryOrNotFound(
       res,
-      `UPDATE clips SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      `UPDATE clips SET ${sets.join(', ')}
+       WHERE id = $${params.length - 1}
+         AND person_id IN (SELECT id FROM people WHERE family_id = $${params.length})
+       RETURNING *`,
       params,
       `clip ${id} not found`
     );
@@ -145,7 +160,15 @@ clipsRouter.put('/:id', async (req, res, next) => {
 clipsRouter.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const deleted = await queryOrNotFound(res, 'DELETE FROM clips WHERE id = $1 RETURNING file_path', [id], `clip ${id} not found`);
+    const deleted = await queryOrNotFound(
+      res,
+      `DELETE FROM clips
+       WHERE id = $1
+         AND person_id IN (SELECT id FROM people WHERE family_id = $2)
+       RETURNING file_path`,
+      [id, req.user.family.id],
+      `clip ${id} not found`
+    );
     if (!deleted) return;
 
     const absolutePath = path.join(UPLOAD_DIR, path.basename(deleted.file_path));

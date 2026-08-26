@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client.js";
 import PersonCard from "../components/PersonCard.jsx";
+import FamilyPanel from "../components/FamilyPanel.jsx";
 
 // Mirrors the backend's own hard limit (peopleRouter's MAX_PEOPLE) -- this
 // copy is just for showing a proactive count/notice before someone hits
@@ -14,13 +15,18 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    api.people
+  const loadPeople = useCallback(() => {
+    setLoading(true);
+    return api.people
       .list()
       .then(setPeople)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadPeople();
+  }, [loadPeople]);
 
   async function handleDelete(person) {
     if (
@@ -39,6 +45,8 @@ export default function Dashboard() {
 
   return (
     <div>
+      <FamilyPanel onFamilyChanged={loadPeople} />
+
       <div className="page-header">
         <div>
           <h1>

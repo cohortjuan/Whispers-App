@@ -40,6 +40,7 @@ describe('POST /api/auth/login', () => {
       display_name: 'Nana',
       failed_login_attempts: 0,
       locked_until: null,
+      family_id: 7,
     };
 
     // a tiny in-memory "database" so lockout state actually persists
@@ -47,6 +48,9 @@ describe('POST /api/auth/login', () => {
     pool.query.mockImplementation(async (sql, params) => {
       if (sql.includes('SELECT * FROM users')) {
         return { rows: [{ ...userRow }] };
+      }
+      if (sql.includes('FROM families')) {
+        return { rows: [{ id: 7, name: 'Reyes Family' }] };
       }
       if (sql.includes('locked_until = NULL')) {
         userRow.failed_login_attempts = 0;
@@ -98,7 +102,12 @@ describe('POST /api/auth/login', () => {
       .send({ email: 'nana@example.com', password: CORRECT_PASSWORD });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ id: 1, email: 'nana@example.com', display_name: 'Nana' });
+    expect(res.body).toEqual({
+      id: 1,
+      email: 'nana@example.com',
+      display_name: 'Nana',
+      family: { id: 7, name: 'Reyes Family' },
+    });
 
     const setCookieHeader = res.headers['set-cookie'].join(';');
     expect(setCookieHeader).toContain(`${SESSION_COOKIE_NAME}=`);
@@ -145,6 +154,8 @@ describe('POST /api/auth/signup validation', () => {
     pool.query.mockReset();
   });
 
+  const VALID_PASSWORD = 'a genuinely long new-account password';
+
   it('rejects a password shorter than the minimum length before ever touching the db', async () => {
     const res = await request(app)
       .post('/api/auth/signup')
@@ -152,5 +163,94 @@ describe('POST /api/auth/signup validation', () => {
 
     expect(res.status).toBe(400);
     expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('requires either a family_name or an invite_code', async () => {
+    const res = await request(app)
+      .post('/api/auth/signup')
+      .send({ email: 'new@example.com', password: VALID_PASSWORD, display_name: 'New Person' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/family name|invite code/i);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects sending both a family_name and an invite_code', async () => {
+    const res = await request(app).post('/api/auth/signup').send({
+      email: 'new@example.com',
+      password: VALID_PASSWORD,
+      display_name: 'New Person',
+      family_name: 'The Reyes Family',
+      invite_code: 'ABCDEFGHJK',
+    });
+
+    expect(res.status).toBe(400);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invite_code that does not match any family, without creating an account', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('FROM invites')) return { rows: [] };
+      return { rows: [] };
+    });
+
+    const res = await request(app).post('/api/auth/signup').send({
+      email: 'new@example.com',
+      password: VALID_PASSWORD,
+      display_name: 'New Person',
+      invite_code: 'nonexistent-code',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "that invite code doesn't match any family" });
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects an invite_code that was already used', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('FROM invites')) {
+        return { rows: [{ id: 1, family_id: 7, email: null, used_at: new Date().toISOString(), expires_at: new Date(Date.now() + 100000).toISOString() }] };
+      }
+      return { rows: [] };
+    });
+
+    const res = await request(app).post('/api/auth/signup').send({
+      email: 'new@example.com',
+      password: VALID_PASSWORD,
+      display_name: 'New Person',
+      invite_code: 'already-used-code',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'that invite code has already been used' });
+  });
+
+  it('rejects an invite_code locked to a different email address', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('FROM invites')) {
+        return {
+          rows: [
+            {
+              id: 1,
+              family_id: 7,
+              email: 'someone-else@example.com',
+              used_at: null,
+              expires_at: new Date(Date.now() + 100000).toISOString(),
+            },
+          ],
+        };
+      }
+      return { rows: [] };
+    });
+
+    const res = await request(app).post('/api/auth/signup').send({
+      email: 'new@example.com',
+      password: VALID_PASSWORD,
+      display_name: 'New Person',
+      invite_code: 'email-locked-code',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'that invite code was issued for a different email address' });
   });
 });
