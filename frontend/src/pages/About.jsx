@@ -1,5 +1,10 @@
+import { useState } from 'react';
+import CrashGame from '../components/CrashGame.jsx';
+
 // the "why" behind the app -- no data fetching here, just the pitch
 export default function About() {
+  const [showGame, setShowGame] = useState(false);
+
   return (
     <div>
       <div className="page-header">
@@ -44,6 +49,24 @@ export default function About() {
         muted
         playsInline
       />
+
+      {/* a small easter egg, not a feature -- nothing points at this on
+          purpose, it's just sitting here for whoever notices it */}
+      <button
+        type="button"
+        className="about-easter-egg"
+        onClick={() => setShowGame((s) => !s)}
+        aria-label="a curious acorn"
+        title="huh, an acorn"
+      >
+        🌰
+      </button>
+      {showGame && (
+        <div className="about-easter-egg-game">
+          <p className="page-subtitle">you found it. catch some acorns:</p>
+          <CrashGame />
+        </div>
+      )}
     </div>
   );
 }
