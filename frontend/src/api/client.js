@@ -81,6 +81,33 @@ export function getFileUrl(filePath) {
   return `${base}/uploads/${filePath}`;
 }
 
+// GET /api/people/:id/export -- a zip stream, not json, so it doesn't go
+// through request(). Fetched and handed to the browser as a blob rather
+// than being a plain <a href download>: in dev the API is on another origin
+// (localhost:5000 vs :5173) and browsers ignore the `download` attribute
+// cross-origin, so the old link opened the zip instead of saving it and
+// lost the filename. Going through fetch keeps the behaviour identical in
+// dev and prod, and credentials: "include" carries the session either way.
+export async function downloadPersonExport(personId, filename) {
+  const res = await fetch(`${API_URL}/people/${personId}/export`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error || `export failed with status ${res.status}`);
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
   auth: {
     me: () => request("/auth/me"),
@@ -97,10 +124,30 @@ export const api = {
     // own family; omitting email makes it redeemable by whoever gets it first
     createInvite: (body) =>
       request("/auth/invites", { method: "POST", body: JSON.stringify(body) }),
+    // soft-deletes the caller's own login (not their family's tree data),
+    // 30-day grace period -- see POST /auth/restore to undo
+    deleteAccount: () => request("/auth/me", { method: "DELETE" }),
+    // body: { email, password } -- undoes deleteAccount within the grace
+    // period. public (no session needed), re-verifies the password since
+    // deleteAccount revokes every session immediately
+    restoreAccount: (body) =>
+      request("/auth/restore", { method: "POST", body: JSON.stringify(body) }),
+    // how many active logins share the caller's family -- used to warn
+    // before deleting the last one
+    familyMemberCount: () => request("/auth/family-member-count"),
+    // body: { name }
+    updateFamily: (body) =>
+      request("/auth/family", { method: "PATCH", body: JSON.stringify(body) }),
   },
   people: {
     list: () => request("/people"),
     get: (id) => request(`/people/${id}`),
+    // trashed (soft-deleted) people in the caller's family
+    listTrash: () => request("/people/trash"),
+    // pulls a person back out of the trash, within the 30-day window
+    restore: (id) => request(`/people/${id}/restore`, { method: "POST" }),
+    // "delete forever now" -- only works on someone already in the trash
+    purge: (id) => request(`/people/${id}/permanent`, { method: "DELETE" }),
     // body can be a plain object (JSON, no photo change) or a FormData
     // (includes a "photo" file field) -- request() already branches on
     // that for the Content-Type header, this just avoids double-encoding
@@ -134,6 +181,11 @@ export const api = {
     create: (formData) => request("/clips", { method: "POST", body: formData }),
     update: (id, body) =>
       request(`/clips/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    // moves the clip to the trash (recoverable for TRASH_RETENTION_DAYS),
+    // it is not destroyed here -- see restore/purge below
     remove: (id) => request(`/clips/${id}`, { method: "DELETE" }),
+    listTrash: () => request("/clips/trash"),
+    restore: (id) => request(`/clips/${id}/restore`, { method: "POST" }),
+    purge: (id) => request(`/clips/${id}/permanent`, { method: "DELETE" }),
   },
 };

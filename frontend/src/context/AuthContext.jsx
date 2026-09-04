@@ -54,8 +54,37 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // same shape as logout() above -- the account's sessions are revoked
+  // server-side either way, so local state clears in `finally` too
+  async function deleteAccount() {
+    try {
+      await api.auth.deleteAccount();
+    } finally {
+      setUser(null);
+    }
+  }
+
+  // undoes deleteAccount within the 30-day grace window -- re-verifies the
+  // password since there's no live session to restore from
+  async function restoreAccount(credentials) {
+    const restoredUser = await api.auth.restoreAccount(credentials);
+    setUser(restoredUser);
+    return restoredUser;
+  }
+
+  // re-fetches "who am I" -- used after an in-place change (like renaming
+  // the family) that the /auth/* endpoint making the change doesn't itself
+  // return in the same shape /me does
+  async function refreshUser() {
+    const freshUser = await api.auth.me();
+    setUser(freshUser);
+    return freshUser;
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, joinFamily }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, signup, logout, joinFamily, deleteAccount, restoreAccount, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

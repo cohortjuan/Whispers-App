@@ -1,11 +1,15 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
-export default function LoginPage() {
-  const { login } = useAuth();
+// Public route (not behind RequireAuth) -- deleting an account revokes every
+// session immediately (see backend DELETE /auth/me), so there's no live
+// session left for a "cancel deletion" button to hang off of. This is the
+// actual way back in, within the 30-day grace period, same shape as
+// LoginPage but hitting POST /auth/restore instead of /auth/login.
+export default function RestoreAccountPage() {
+  const { restoreAccount } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -19,12 +23,8 @@ export default function LoginPage() {
     setError('');
     setSubmitting(true);
     try {
-      await login(form);
-      // Bounced here by the route guard with the page they wanted attached,
-      // so signing in continues where they left off instead of dumping them
-      // back at the dashboard every time.
-      const redirectTo = location.state?.from || '/';
-      navigate(redirectTo, { replace: true });
+      await restoreAccount(form);
+      navigate('/', { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -35,8 +35,11 @@ export default function LoginPage() {
   return (
     <div className="auth-page">
       <div className="page-header">
-        <h1>Sign In</h1>
+        <h1>Restore Your Account</h1>
       </div>
+      <p className="page-subtitle">
+        deleted your account within the last 30 days? sign back in below to undo it.
+      </p>
 
       <form className="form" onSubmit={handleSubmit}>
         {error && <div className="form-error">{error}</div>}
@@ -67,16 +70,13 @@ export default function LoginPage() {
 
         <div className="form-actions">
           <button className="btn" type="submit" disabled={submitting}>
-            {submitting ? 'signing in...' : 'sign in'}
+            {submitting ? 'restoring...' : 'restore my account'}
           </button>
         </div>
       </form>
 
       <p className="auth-switch">
-        New to the family archive? <Link to="/signup">Create an account</Link>
-      </p>
-      <p className="auth-switch">
-        Accidentally deleted your account? <Link to="/restore-account">Restore it</Link>
+        <Link to="/login">back to sign in</Link>
       </p>
     </div>
   );

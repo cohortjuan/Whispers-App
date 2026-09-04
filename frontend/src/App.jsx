@@ -9,6 +9,9 @@ import FamilyTree from './pages/FamilyTree.jsx';
 import About from './pages/About.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import SignupPage from './pages/SignupPage.jsx';
+import Trash from './pages/Trash.jsx';
+import AccountSettings from './pages/AccountSettings.jsx';
+import RestoreAccountPage from './pages/RestoreAccountPage.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
 export default function App() {
@@ -25,6 +28,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/restore-account" element={<RestoreAccountPage />} />
 
           <Route path="/" element={<HomeGate />} />
           <Route
@@ -52,6 +56,8 @@ export default function App() {
             }
           />
           <Route path="/tree" element={<RequireAuth><FamilyTree /></RequireAuth>} />
+          <Route path="/trash" element={<RequireAuth><Trash /></RequireAuth>} />
+          <Route path="/account" element={<RequireAuth><AccountSettings /></RequireAuth>} />
           <Route path="/about" element={<RequireAuth><About /></RequireAuth>} />
         </Routes>
       </main>

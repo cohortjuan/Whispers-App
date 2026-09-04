@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, getFileUrl } from '../api/client.js';
-import { lifespan, classifyRelationship, fullName } from '../utils.js';
+import { api, getFileUrl, downloadPersonExport } from '../api/client.js';
+import { lifespan, classifyRelationship, fullName, TRASH_RETENTION_DAYS } from '../utils.js';
 import ClipPlayer from '../components/ClipPlayer.jsx';
 import ClipUploadForm from '../components/ClipUploadForm.jsx';
 import RelationshipForm from '../components/RelationshipForm.jsx';
@@ -57,7 +57,12 @@ export default function PersonDetail() {
   useEffect(() => { load(); }, [load]);
 
   async function handleDeletePerson() {
-    if (!confirm(`delete ${person.first_name} ${person.last_name}? this removes their clips and relationships too, can't be undone.`)) return;
+    if (
+      !confirm(
+        `move ${person.first_name} ${person.last_name} to the trash? they'll disappear from the tree, but you can restore them or download their clips for ${TRASH_RETENTION_DAYS} days before they're gone for good.`,
+      )
+    )
+      return;
     try {
       await api.people.remove(id);
       navigate('/');
@@ -67,7 +72,7 @@ export default function PersonDetail() {
   }
 
   async function handleDeleteClip(clipId) {
-    if (!confirm('delete this clip? the file is gone for good.')) return;
+    if (!confirm(`move this recording to the trash? you can restore it for ${TRASH_RETENTION_DAYS} days.`)) return;
     try {
       await api.clips.remove(clipId);
       setClips((cs) => cs.filter((c) => c.id !== clipId));
@@ -125,6 +130,18 @@ export default function PersonDetail() {
           <p className="page-subtitle">{lifespan(person)}</p>
         </div>
         <div className="page-header-actions">
+          {clips.length > 0 && (
+            <button
+              className="btn btn-secondary"
+              onClick={() =>
+                downloadPersonExport(id, `${fullName(person).replace(/[^a-z0-9-]+/gi, '_')}-clips.zip`).catch((err) =>
+                  alert(`couldn't download: ${err.message}`),
+                )
+              }
+            >
+              download backup
+            </button>
+          )}
           <Link className="btn btn-secondary" to={`/people/${id}/edit`}>edit</Link>
           <button className="btn btn-danger" onClick={handleDeletePerson}>delete</button>
         </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api/client.js';
+import { disambiguatedName } from '../utils.js';
 
 // lets you link this person to someone else in the tree.
 // the three options map onto the two db relationship types + a direction
@@ -62,7 +63,11 @@ export default function RelationshipForm({ personId, otherPeople, onCreated }) {
           <select className="form-input" value={relatedId} onChange={(e) => setRelatedId(e.target.value)}>
             <option value="">select someone...</option>
             {otherPeople.map((p) => (
-              <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>
+              // birth year (and suffix, if set) disambiguates two people who
+              // share a full name -- a bare "First Last" is genuinely
+              // ambiguous when a family has a Jr./Sr./III or just a repeated
+              // name across generations
+              <option key={p.id} value={p.id}>{disambiguatedName(p)}</option>
             ))}
           </select>
         </div>

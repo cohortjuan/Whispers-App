@@ -31,7 +31,7 @@ export default function Dashboard() {
   async function handleDelete(person) {
     if (
       !confirm(
-        `delete ${person.first_name} ${person.last_name}? this removes their clips and relationships too, can't be undone.`,
+        `move ${person.first_name} ${person.last_name} to the trash? they'll disappear from the tree, but you can restore them or download their clips for ${TRASH_RETENTION_DAYS} days before they're gone for good.`,
       )
     )
       return;

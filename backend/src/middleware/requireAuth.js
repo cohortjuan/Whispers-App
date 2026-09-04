@@ -13,6 +13,11 @@ export async function requireAuth(req, res, next) {
       return res.status(401).json({ error: 'not logged in' });
     }
 
+    // u.deleted_at IS NULL: a soft-deleted account (see routes/auth.js's
+    // DELETE /me) has its sessions revoked immediately, so this is really a
+    // backstop -- but it's what actually closes the gap if some future code
+    // path ever mints or reuses a session without checking deletion status
+    // first (e.g. a bug in the restore flow)
     const result = await pool.query(
       `SELECT s.id AS session_id, s.csrf_token, s.expires_at,
               u.id AS user_id, u.email, u.display_name,
@@ -20,7 +25,7 @@ export async function requireAuth(req, res, next) {
        FROM sessions s
        JOIN users u ON u.id = s.user_id
        JOIN families f ON f.id = u.family_id
-       WHERE s.token_hash = $1`,
+       WHERE s.token_hash = $1 AND u.deleted_at IS NULL`,
       [hashToken(token)]
     );
 

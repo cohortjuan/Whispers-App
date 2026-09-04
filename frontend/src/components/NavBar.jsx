@@ -52,6 +52,8 @@ export default function NavBar() {
       <div className="navbar-links">
         <Link to="/">People</Link>
         <Link to="/tree">Family Tree</Link>
+        <Link to="/trash">Trash</Link>
+        <Link to="/account">Account</Link>
         <Link to="/about">🌰 About</Link>
         <Link to="/people/new">+ Add Person</Link>
         {user ? (

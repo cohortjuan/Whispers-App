@@ -42,6 +42,13 @@ database on Neon.
   with a big "capture their voice" card and a large mic button — not a form buried
   under a toggle. Recording happens straight from the browser mic
   (`MediaRecorder`), with a fallback to uploading an existing audio/video file.
+- 🗑️ **Nothing irreplaceable is ever one click from gone.** Deleting a person *or* a
+  recording moves it to a Trash page for 30 days, where it can be restored, downloaded
+  as a zip backup, or deleted for good on purpose — after that a nightly job hard-deletes
+  it and removes the files from disk. Deleting your own account is soft too: it revokes
+  every session immediately but leaves your family's tree completely untouched, and you
+  can restore the login at `/restore-account` (with your password) within the same 30
+  days. That window lives in exactly one place on the backend — `lib/retention.js`.
 - 🌳 **An actual connected family tree**, not just a list. The Family Tree page draws
   parents, spouses, and children as a real branching diagram, and each person's own
   profile shows their immediate family (parents/spouse/children) the same way —

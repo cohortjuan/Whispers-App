@@ -20,10 +20,34 @@ export function initials(person) {
   return (a + b).toUpperCase();
 }
 
+// name + suffix, no nickname -- the shared base both fullName and
+// disambiguatedName build on, so the suffix rule only lives in one place
+function nameWithSuffix(person) {
+  return person.suffix
+    ? `${person.first_name} ${person.last_name} ${person.suffix}`
+    : `${person.first_name} ${person.last_name}`;
+}
+
 export function fullName(person) {
   if (!person) return '';
-  return person.nickname ? `${person.first_name} ${person.last_name} "${person.nickname}"` : `${person.first_name} ${person.last_name}`;
+  const name = nameWithSuffix(person);
+  return person.nickname ? `${name} "${person.nickname}"` : name;
 }
+
+// a short, unambiguous label for picking ONE person out of a list where two
+// people can share a full name (Jr./Sr./III, or just a repeated family
+// name across generations) -- birth year is the cheapest real disambiguator
+// available (suffix already helps, but not everyone has one filled in)
+export function disambiguatedName(person) {
+  const year = formatYear(person.birth_date);
+  const base = nameWithSuffix(person);
+  return year ? `${base} (b. ${year})` : base;
+}
+
+// display-copy only -- the backend owns the real value (see
+// backend/src/lib/retention.js) and returns exact purge_at timestamps for
+// anything that has to be precise. Keep the two in step if you change it.
+export const TRASH_RETENTION_DAYS = 30;
 
 // classifies a raw relationship row from ONE person's point of view -- both
 // the Family Tree page (building maps for everyone) and a person's own

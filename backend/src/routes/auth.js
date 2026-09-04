@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { csrfProtection } from '../middleware/csrf.js';
+import { TRASH_RETENTION_MS } from '../lib/retention.js';
 import {
   hashPassword,
   verifyPassword,
@@ -19,6 +20,7 @@ import {
   hashToken,
   resolveCookieOptions,
 } from '../lib/session.js';
+import { sendMail } from '../lib/mailer.js';
 
 export const authRouter = Router();
 
@@ -62,6 +64,20 @@ const loginLimiter = rateLimit({
 // logged-in account could otherwise just try every code in a loop. same
 // window/limit as login since it's the same kind of "guess a secret" risk.
 const joinFamilyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'too many attempts, please try again later' },
+});
+
+// same shape as loginLimiter -- restoring a deleted account is still
+// fundamentally "guess a password against a known email", the same risk
+// login already guards against. NOTE this is only the ip-keyed half of
+// that guard: POST /restore also runs the same per-account lockout login
+// does (see the LOCK_THRESHOLD update in its handler), because an ip
+// limiter alone doesn't stop a slow/distributed attack on one account.
+const restoreLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
   standardHeaders: true,
@@ -130,6 +146,35 @@ async function redeemInvite(inviteId, userId, executor = pool) {
     [inviteId, userId]
   );
   return result.rows.length > 0;
+}
+
+// Fire-and-forget: called from both signup (joining via invite) and
+// join-family below, always AFTER the family switch/account creation has
+// already succeeded, and never awaited before the http response -- an email
+// provider being slow or down should never delay or fail the actual request
+// that triggered it. Notifies every OTHER current member of the family, not
+// just whoever generated the invite code -- deliberately broader than "the
+// inviter" so nobody in the family is surprised by a new face in their tree.
+async function notifyFamilyOfNewMember({ familyId, newMemberName, joiningUserId }) {
+  try {
+    const result = await pool.query(
+      `SELECT u.email, f.name AS family_name
+       FROM users u JOIN families f ON f.id = u.family_id
+       WHERE u.family_id = $1 AND u.deleted_at IS NULL AND u.id <> $2`,
+      [familyId, joiningUserId]
+    );
+    await Promise.all(
+      result.rows.map((row) =>
+        sendMail({
+          to: row.email,
+          subject: `${newMemberName} just joined ${row.family_name} on Whispers`,
+          text: `${newMemberName} used an invite code to join your family's tree on Whispers App.`,
+        })
+      )
+    );
+  } catch (err) {
+    console.error('failed to notify family of new member:', err.message);
+  }
 }
 
 function setAuthCookies(res, { token, csrfToken }) {
@@ -256,6 +301,18 @@ authRouter.post('/signup', signupLimiter, async (req, res, next) => {
       }
 
       await client.query('COMMIT');
+
+      // only when joining an existing family via invite -- a brand-new
+      // family has nobody else in it yet to notify. Not awaited: email
+      // sending must never delay this response.
+      if (invite) {
+        notifyFamilyOfNewMember({
+          familyId,
+          newMemberName: display_name.trim(),
+          joiningUserId: result.rows[0].id,
+        }).catch(() => {});
+      }
+
       res.status(201).json(result.rows[0]);
     } catch (err) {
       await client.query('ROLLBACK');
@@ -290,18 +347,27 @@ authRouter.post('/login', loginLimiter, async (req, res, next) => {
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     const user = result.rows[0];
     const isLocked = !!(user && user.locked_until && new Date(user.locked_until) > new Date());
+    // a soft-deleted account (see DELETE /me below) can't log in normally --
+    // POST /restore is the dedicated way back in, since sessions were
+    // revoked at delete time and there's no live session left to just
+    // "un-delete" through. Rejected with the exact same generic message as
+    // every other reason below, deliberately -- a distinct "this account
+    // was deleted" response would leak deletion state to anyone who tries
+    // an email, the same oracle this file already works to avoid for
+    // locked/nonexistent accounts.
+    const isDeleted = !!(user && user.deleted_at);
 
     // always run a real bcrypt compare (real hash or dummy), so a
     // nonexistent email, a locked account, and a genuinely wrong password
     // all take about the same amount of time
     const passwordMatches = await verifyPassword(password, user ? user.password_hash : DUMMY_HASH);
 
-    if (!user || isLocked || !passwordMatches) {
-      // only track failures against a real, currently-unlocked account --
-      // this is the account-level lockout, independent of the ip-based
-      // rate limiter above, so it catches slow/distributed attempts
-      // against one target account
-      if (user && !isLocked && !passwordMatches) {
+    if (!user || isLocked || isDeleted || !passwordMatches) {
+      // only track failures against a real, currently-unlocked, non-deleted
+      // account -- this is the account-level lockout, independent of the
+      // ip-based rate limiter above, so it catches slow/distributed
+      // attempts against one target account
+      if (user && !isLocked && !isDeleted && !passwordMatches) {
         // Incrementing and (conditionally) locking in one atomic UPDATE,
         // rather than reading failed_login_attempts, computing +1 in JS,
         // then writing it back -- that read-then-write let concurrent
@@ -380,6 +446,13 @@ authRouter.post('/join-family', requireAuth, csrfProtection, joinFamilyLimiter, 
       invite.family_id,
     ]);
 
+    // not awaited -- same reasoning as the signup call site above
+    notifyFamilyOfNewMember({
+      familyId: invite.family_id,
+      newMemberName: req.user.display_name,
+      joiningUserId: req.user.id,
+    }).catch(() => {});
+
     const familyResult = await pool.query('SELECT id, name FROM families WHERE id = $1', [invite.family_id]);
 
     res.json({
@@ -447,4 +520,139 @@ authRouter.post('/logout', requireAuth, csrfProtection, async (req, res, next) =
 // GET /api/auth/me -> 200 { id, email, display_name, family: { id, name } } or 401 { error }
 authRouter.get('/me', requireAuth, (req, res) => {
   res.json(req.user);
+});
+
+// GET /api/auth/family-member-count -> 200 { count }
+// how many active (non-deleted) logins share the caller's family -- powers
+// the frontend's "you're the only one here" warning before deleting an
+// account. its own route rather than folding onto GET /me so that hot path
+// doesn't gain an extra query most callers never need.
+authRouter.get('/family-member-count', requireAuth, async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      'SELECT COUNT(*)::int AS count FROM users WHERE family_id = $1 AND deleted_at IS NULL',
+      [req.user.family.id]
+    );
+    res.json({ count: result.rows[0].count });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/auth/family  { name }
+// -> 200 { id, name }
+// Renames the caller's own family. Any member can do this (no roles/owner
+// concept exists in this app), symmetric with any member already being able
+// to generate an invite. Added directly because of a real incident: a
+// legacy pre-families-table backfill (see the DO $$ ... legacy_family_id
+// block in database/schema.sql) can leave someone's account in a family
+// literally named "My Family" -- previously the only fix was a developer
+// running raw SQL by hand. This makes that self-service.
+authRouter.patch('/family', requireAuth, csrfProtection, async (req, res, next) => {
+  try {
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    if (!name) return res.status(400).json({ error: 'a family name is required' });
+    if (name.length > 200) return res.status(400).json({ error: 'family name is too long' });
+
+    const result = await pool.query('UPDATE families SET name = $1 WHERE id = $2 RETURNING id, name', [
+      name,
+      req.user.family.id,
+    ]);
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/auth/me -- deletes the caller's own LOGIN, not their family's
+// tree. Deliberately separate from deleting a person (DELETE /api/people/:id)
+// -- see the users table's own comment in schema.sql: a login is "who's
+// authenticated and which family they're in," not a tree member, so this
+// never touches people/clips/relationships/families. Soft-deleted (30-day
+// grace, see jobs/purge.js), and every session is revoked immediately so
+// this account is logged out everywhere right away, not just in this tab.
+// -> 204, clears cookies
+authRouter.delete('/me', requireAuth, csrfProtection, async (req, res, next) => {
+  try {
+    // sessions revoked first: if this crashes between the two writes, the
+    // worst case is "sessions gone, account still shows active" (self-
+    // healing -- they can just log in again normally), rather than the
+    // reverse order's "marked deleted, but some session is still alive"
+    // (requireAuth's own u.deleted_at guard closes that gap either way --
+    // this ordering is just belt-and-suspenders on top of it)
+    await pool.query('DELETE FROM sessions WHERE user_id = $1', [req.user.id]);
+    await pool.query('UPDATE users SET deleted_at = now(), updated_at = now() WHERE id = $1', [req.user.id]);
+    clearAuthCookies(res);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/auth/restore  { email, password }
+// -> 200 { id, email, display_name, family: { id, name } } + sets session/csrf cookies
+// Undoes DELETE /me, within the 30-day grace window. Deliberately public (no
+// requireAuth) -- the whole point is the account has no live session left to
+// use, this IS the way back in. Re-verifies the password (same as a fresh
+// login) since a dead session can't prove anything on its own.
+authRouter.post('/restore', restoreLimiter, async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    const { password } = req.body;
+    const reject = () => res.status(401).json({ error: 'no deleted account matches that email and password' });
+
+    if (!email || typeof password !== 'string') return reject();
+
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
+
+    // the per-account lockout applies here exactly as it does on login.
+    // Without it this route was the one password-guessing path in the app
+    // with no account-level limit at all -- only the ip-keyed limiter above,
+    // which is precisely the thing login's lockout exists to backstop for
+    // slow/distributed attempts. Narrow (the target has to be soft-deleted
+    // and inside the grace window) but it undercut the guarantee login makes.
+    const isLocked = !!(user && user.locked_until && new Date(user.locked_until) > new Date());
+
+    // always run a real bcrypt compare, same timing-safety reasoning as login
+    const passwordMatches = await verifyPassword(password, user ? user.password_hash : DUMMY_HASH);
+
+    const withinGrace = user?.deleted_at && new Date(user.deleted_at) > new Date(Date.now() - TRASH_RETENTION_MS);
+
+    if (!user || isLocked || !passwordMatches || !withinGrace) {
+      // count the failure only against a real, unlocked, actually-restorable
+      // account -- and with the same single atomic UPDATE login uses, so
+      // concurrent guesses serialize instead of racing the counter
+      if (user && !isLocked && withinGrace && !passwordMatches) {
+        await pool.query(
+          `UPDATE users
+           SET failed_login_attempts = CASE WHEN failed_login_attempts + 1 >= $2 THEN 0 ELSE failed_login_attempts + 1 END,
+               locked_until = CASE WHEN failed_login_attempts + 1 >= $2 THEN $3 ELSE locked_until END,
+               updated_at = now()
+           WHERE id = $1`,
+          [user.id, LOCK_THRESHOLD, new Date(Date.now() + LOCK_DURATION_MS)]
+        );
+      }
+      return reject();
+    }
+
+    await pool.query(
+      `UPDATE users SET deleted_at = NULL, failed_login_attempts = 0, locked_until = NULL, updated_at = now() WHERE id = $1`,
+      [user.id]
+    );
+
+    const { token, csrfToken } = await createSessionForUser(user.id);
+    setAuthCookies(res, { token, csrfToken });
+
+    const familyResult = await pool.query('SELECT id, name FROM families WHERE id = $1', [user.family_id]);
+
+    res.json({
+      id: user.id,
+      email: user.email,
+      display_name: user.display_name,
+      family: familyResult.rows[0],
+    });
+  } catch (err) {
+    next(err);
+  }
 });

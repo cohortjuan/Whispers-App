@@ -140,6 +140,18 @@ describe('POST /api/auth/login', () => {
     expect(res.body).toEqual({ error: 'incorrect email or password' });
   }, 20000);
 
+  it('rejects a soft-deleted account with the exact same generic message as a wrong password, without touching the lockout counter', async () => {
+    userRow.deleted_at = new Date().toISOString();
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'nana@example.com', password: CORRECT_PASSWORD });
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'incorrect email or password' });
+    expect(userRow.failed_login_attempts).toBe(0);
+  });
+
   it('resets the failure counter on a successful login', async () => {
     await request(app).post('/api/auth/login').send({ email: 'nana@example.com', password: 'nope' });
     await request(app).post('/api/auth/login').send({ email: 'nana@example.com', password: 'nope' });
@@ -257,5 +269,173 @@ describe('POST /api/auth/signup validation', () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: 'that invite code was issued for a different email address' });
+  });
+});
+
+describe('POST /api/auth/restore', () => {
+  let app;
+  let userRow;
+
+  beforeEach(async () => {
+    app = buildApp();
+    pool.query.mockReset();
+
+    userRow = {
+      id: 1,
+      email: 'nana@example.com',
+      password_hash: await hashPassword(CORRECT_PASSWORD),
+      display_name: 'Nana',
+      family_id: 7,
+      deleted_at: new Date().toISOString(), // "deleted" just now -- well within the 30-day window
+    };
+
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('SELECT * FROM users')) return { rows: [{ ...userRow }] };
+      if (sql.includes('FROM families')) return { rows: [{ id: 7, name: 'Reyes Family' }] };
+      if (sql.includes('SET deleted_at = NULL')) {
+        userRow.deleted_at = null;
+        return { rows: [] };
+      }
+      if (sql.includes('INSERT INTO sessions')) return { rows: [] };
+      return { rows: [] };
+    });
+  });
+
+  it('restores a soft-deleted account within the grace window and logs it in', async () => {
+    const res = await request(app)
+      .post('/api/auth/restore')
+      .send({ email: 'nana@example.com', password: CORRECT_PASSWORD });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      id: 1,
+      email: 'nana@example.com',
+      display_name: 'Nana',
+      family: { id: 7, name: 'Reyes Family' },
+    });
+    const setCookieHeader = res.headers['set-cookie'].join(';');
+    expect(setCookieHeader).toContain(`${SESSION_COOKIE_NAME}=`);
+    expect(setCookieHeader).toContain(`${CSRF_COOKIE_NAME}=`);
+  });
+
+  it('rejects the wrong password with a generic message', async () => {
+    const res = await request(app)
+      .post('/api/auth/restore')
+      .send({ email: 'nana@example.com', password: 'totally wrong' });
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'no deleted account matches that email and password' });
+  });
+
+  it('rejects an account that was never deleted, even with the right password', async () => {
+    userRow.deleted_at = null;
+
+    const res = await request(app)
+      .post('/api/auth/restore')
+      .send({ email: 'nana@example.com', password: CORRECT_PASSWORD });
+
+    expect(res.status).toBe(401);
+  });
+
+  // restore used to be the one password-guessing route with no account-level
+  // limit at all -- only the ip-keyed limiter, which is exactly what login's
+  // lockout exists to backstop for slow/distributed attempts
+  it('counts a failed restore against the account lockout, like login does', async () => {
+    const lockoutUpdates = [];
+    pool.query.mockImplementation(async (sql, params) => {
+      if (sql.includes('SELECT * FROM users')) return { rows: [{ ...userRow }] };
+      if (sql.includes('failed_login_attempts = CASE WHEN')) {
+        lockoutUpdates.push(params);
+        return { rows: [] };
+      }
+      return { rows: [] };
+    });
+
+    const res = await request(app)
+      .post('/api/auth/restore')
+      .send({ email: 'nana@example.com', password: 'totally wrong' });
+
+    expect(res.status).toBe(401);
+    expect(lockoutUpdates).toHaveLength(1);
+  });
+
+  it('refuses to restore a locked account even with the correct password', async () => {
+    userRow.locked_until = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+    const res = await request(app)
+      .post('/api/auth/restore')
+      .send({ email: 'nana@example.com', password: CORRECT_PASSWORD });
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'no deleted account matches that email and password' });
+  });
+
+  it('rejects an account deleted more than 30 days ago (past the grace window)', async () => {
+    userRow.deleted_at = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
+
+    const res = await request(app)
+      .post('/api/auth/restore')
+      .send({ email: 'nana@example.com', password: CORRECT_PASSWORD });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects an email that has no account at all, with the same generic message', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('SELECT * FROM users')) return { rows: [] };
+      return { rows: [] };
+    });
+
+    const res = await request(app)
+      .post('/api/auth/restore')
+      .send({ email: 'nobody@example.com', password: 'whatever' });
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'no deleted account matches that email and password' });
+  });
+});
+
+describe('DELETE /api/auth/me', () => {
+  it('revokes every session for the user and soft-deletes the account', async () => {
+    // unlike /api/people etc. (which get requireAuth/csrfProtection from
+    // app.js at the mount level), DELETE /me wires them directly onto the
+    // route itself -- so this test has to actually satisfy both, via the
+    // real middleware running against the mocked pool, same as the login
+    // test above does for its own cookie assertions
+    const app = buildApp();
+    pool.query.mockReset();
+
+    const rawToken = 'a-raw-session-token';
+    const csrfToken = 'csrf-for-delete-me';
+
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('FROM sessions s')) {
+        return {
+          rows: [
+            {
+              session_id: 99,
+              csrf_token: csrfToken,
+              expires_at: new Date(Date.now() + 1000 * 60 * 60).toISOString(),
+              user_id: 1,
+              email: 'nana@example.com',
+              display_name: 'Nana',
+              family_id: 7,
+              family_name: 'Reyes Family',
+            },
+          ],
+        };
+      }
+      return { rows: [] };
+    });
+
+    const res = await request(app)
+      .delete('/api/auth/me')
+      .set('Cookie', [`${SESSION_COOKIE_NAME}=${rawToken}`, `${CSRF_COOKIE_NAME}=${csrfToken}`])
+      .set('X-CSRF-Token', csrfToken);
+
+    expect(res.status).toBe(204);
+    const calledSql = pool.query.mock.calls.map((call) => call[0]);
+    expect(calledSql.some((sql) => sql.includes('DELETE FROM sessions WHERE user_id'))).toBe(true);
+    expect(calledSql.some((sql) => sql.includes('UPDATE users SET deleted_at = now()'))).toBe(true);
   });
 });

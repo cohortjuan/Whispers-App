@@ -7,7 +7,7 @@ import { api } from "../api/client.js";
 // them (either because they signed up before getting invited, or because
 // they want to switch into a different family's tree).
 export default function FamilyPanel({ onFamilyChanged }) {
-  const { user, joinFamily } = useAuth();
+  const { user, joinFamily, refreshUser } = useAuth();
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteResult, setInviteResult] = useState(null);
@@ -18,6 +18,11 @@ export default function FamilyPanel({ onFamilyChanged }) {
   const [joinCode, setJoinCode] = useState("");
   const [joinError, setJoinError] = useState("");
   const [joining, setJoining] = useState(false);
+
+  const [renaming, setRenaming] = useState(false);
+  const [newFamilyName, setNewFamilyName] = useState("");
+  const [renameError, setRenameError] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   async function handleCreateInvite(e) {
     e.preventDefault();
@@ -63,6 +68,28 @@ export default function FamilyPanel({ onFamilyChanged }) {
     }
   }
 
+  // any member can rename the family, same "no roles/owner concept" scope
+  // as any member already being able to generate an invite. Refreshes the
+  // shared user (rather than patching user.family.name locally) so this
+  // always reflects server truth.
+  async function handleRename(e) {
+    e.preventDefault();
+    setRenameError("");
+    if (!newFamilyName.trim()) return;
+
+    setSavingName(true);
+    try {
+      await api.auth.updateFamily({ name: newFamilyName.trim() });
+      await refreshUser();
+      setRenaming(false);
+      setNewFamilyName("");
+    } catch (err) {
+      setRenameError(err.message);
+    } finally {
+      setSavingName(false);
+    }
+  }
+
   function copyCode() {
     if (inviteResult?.code) {
       navigator.clipboard?.writeText(inviteResult.code).catch(() => {});
@@ -79,7 +106,49 @@ export default function FamilyPanel({ onFamilyChanged }) {
     <div className="family-panel">
       <div className="family-panel-header">
         <span>
-          🌳 you're in <strong>{user.family.name}</strong>
+          🌳 you're in{" "}
+          {renaming ? (
+            <form
+              style={{ display: "inline-flex", gap: 6, alignItems: "center" }}
+              onSubmit={handleRename}
+            >
+              <input
+                className="form-input"
+                style={{ display: "inline-block", width: "auto" }}
+                value={newFamilyName}
+                onChange={(e) => setNewFamilyName(e.target.value)}
+                placeholder={user.family.name}
+                autoFocus
+              />
+              <button className="btn btn-small" type="submit" disabled={savingName}>
+                {savingName ? "saving..." : "save"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-small"
+                onClick={() => {
+                  setRenaming(false);
+                  setRenameError("");
+                }}
+              >
+                cancel
+              </button>
+            </form>
+          ) : (
+            <>
+              <strong>{user.family.name}</strong>{" "}
+              <button
+                type="button"
+                className="btn-link"
+                onClick={() => {
+                  setNewFamilyName(user.family.name);
+                  setRenaming(true);
+                }}
+              >
+                rename
+              </button>
+            </>
+          )}
         </span>
         <button
           type="button"
@@ -89,6 +158,8 @@ export default function FamilyPanel({ onFamilyChanged }) {
           {showJoin ? "cancel" : "have an invite code?"}
         </button>
       </div>
+
+      {renameError && <div className="form-error">{renameError}</div>}
 
       {showJoin ? (
         <form className="family-invite-form" onSubmit={handleJoin}>

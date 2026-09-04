@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api, getFileUrl } from '../api/client.js';
 
 const BLANK = {
-  first_name: '', last_name: '', nickname: '',
+  first_name: '', last_name: '', suffix: '', nickname: '',
   birth_date: '', death_date: '', bio: '',
 };
 
@@ -41,6 +41,7 @@ export default function PersonForm({ mode }) {
         setForm({
           first_name: p.first_name || '',
           last_name: p.last_name || '',
+          suffix: p.suffix || '',
           nickname: p.nickname || '',
           birth_date: p.birth_date ? p.birth_date.slice(0, 10) : '',
           death_date: p.death_date ? p.death_date.slice(0, 10) : '',
@@ -145,9 +146,21 @@ export default function PersonForm({ mode }) {
           </div>
         </div>
 
-        <div className="form-group">
-          <label className="form-label">nickname (optional)</label>
-          <input className="form-input" value={form.nickname} onChange={(e) => update('nickname', e.target.value)} placeholder='e.g. "Nana"' />
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">suffix (optional)</label>
+            <input
+              className="form-input"
+              value={form.suffix}
+              onChange={(e) => update('suffix', e.target.value)}
+              placeholder="Jr., Sr., III..."
+              maxLength={10}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">nickname (optional)</label>
+            <input className="form-input" value={form.nickname} onChange={(e) => update('nickname', e.target.value)} placeholder='e.g. "Nana"' />
+          </div>
         </div>
 
         <div className="form-row">

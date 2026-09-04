@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS people (
   id           SERIAL PRIMARY KEY,
   first_name   VARCHAR(100) NOT NULL,
   last_name    VARCHAR(100) NOT NULL,
+  suffix       VARCHAR(10),
   nickname     VARCHAR(100),
   birth_date   DATE,
   death_date   DATE,
@@ -189,5 +190,36 @@ ALTER TABLE users ALTER COLUMN family_id SET NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_people_family_id ON people(family_id);
 CREATE INDEX IF NOT EXISTS idx_users_family_id ON users(family_id);
+
+-- ---------------------------------------------------------------------
+-- same ALTER ... ADD COLUMN IF NOT EXISTS reasoning as family_id above --
+-- people/users already exist in production, so a brand-new column has to
+-- be added this way to actually reach a pre-existing table, not just a
+-- fresh one. suffix (Jr., Sr., III, ...) is a plain display field, no
+-- backfill needed. deleted_at is nullable soft-delete: NULL means active,
+-- set means "trashed"/"account deleted" and awaiting the purge job in
+-- backend/src/jobs/purge.js to hard-delete it after 30 days -- see that
+-- file, and requireAuth.js / people.js / clips.js / relationships.js for
+-- everywhere that has to start filtering it out.
+-- ---------------------------------------------------------------------
+ALTER TABLE people ADD COLUMN IF NOT EXISTS suffix VARCHAR(10);
+ALTER TABLE people ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+-- clips get the same 30-day trash people do. This was the backwards case
+-- for a while: a PERSON (a name and some metadata, re-enterable in a
+-- minute) was recoverable, while a CLIP -- an actual recording of somebody's
+-- voice, the whole reason this app exists and the one thing here that can
+-- never be recreated -- was hard-deleted the instant you clicked delete,
+-- file unlinked and all. Now nothing irreplaceable leaves without a grace
+-- period.
+ALTER TABLE clips ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+-- partial indexes: only trashed/deleted rows ever match these, which is
+-- exactly what both the trash-listing queries and the purge job's "find
+-- everything past 30 days" queries filter on
+CREATE INDEX IF NOT EXISTS idx_people_deleted_at ON people(deleted_at) WHERE deleted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users(deleted_at) WHERE deleted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_clips_deleted_at ON clips(deleted_at) WHERE deleted_at IS NOT NULL;
 
 COMMIT;

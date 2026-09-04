@@ -23,7 +23,7 @@ relationshipsRouter.get('/', async (req, res, next) => {
       FROM relationships r
       JOIN people p1 ON p1.id = r.person_id
       JOIN people p2 ON p2.id = r.related_person_id
-      WHERE p1.family_id = $1 AND p2.family_id = $1
+      WHERE p1.family_id = $1 AND p2.family_id = $1 AND p1.deleted_at IS NULL AND p2.deleted_at IS NULL
     `;
 
     if (person_id) {
@@ -65,7 +65,7 @@ relationshipsRouter.post('/', async (req, res, next) => {
       // their own family to a person_id belonging to a different family --
       // requiring both ids to come back scoped to family_id is what makes
       // the "2 rows" check below actually mean "2 rows, both mine"
-      pool.query('SELECT id FROM people WHERE id IN ($1, $2) AND family_id = $3', [
+      pool.query('SELECT id FROM people WHERE id IN ($1, $2) AND family_id = $3 AND deleted_at IS NULL', [
         person_id,
         related_person_id,
         req.user.family.id,
